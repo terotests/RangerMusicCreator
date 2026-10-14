@@ -48,6 +48,7 @@
             <div class="bezel"><canvas id="screen" width="960" height="540"></canvas></div>
             <div class="side" id="side"></div>
           </div>
+          <div class="info" id="info">Hover over any control to see what it does.</div>
           <div class="rows">
             <section class="group" id="perform"><h4>PERFORM</h4><div class="keys"></div></section>
             <section class="group" id="song"><h4>SONG</h4><div class="keys"></div></section>
@@ -65,6 +66,28 @@
             </section>
           </div>
         </div>
+        <section class="panel tape">
+          <h3>SESSION TAPE · EVERYTHING YOU PLAY IS KEPT: SELECT A STRETCH TO LISTEN AGAIN, SAVE IT OR GO BACK THERE</h3>
+          <div class="tape-body">
+            <canvas id="tape" width="1180" height="92" data-help="The session tape: the last 10 minutes of what played. Click a coloured section to select it, or drag to select any stretch."></canvas>
+            <div class="tape-side">
+              <div class="tape-read" id="tape-read">TAPE 0:00</div>
+              <div class="tape-keys" id="tape-keys"></div>
+            </div>
+          </div>
+          <div class="tape-row2">
+            <div class="memory">
+              <h4>THEME MEMORY</h4>
+              <div class="mem-body" id="memory"></div>
+            </div>
+            <div class="files">
+              <h4>SET &amp; MIDI FILES</h4>
+              <div class="mem-body" id="files"></div>
+            </div>
+          </div>
+          <input type="file" id="load-set" accept=".json,application/json" hidden />
+          <input type="file" id="load-midi" accept=".mid,.midi,audio/midi" hidden />
+        </section>
       </div>
     </div>
 
@@ -79,8 +102,13 @@
           <li><b>SURPRISE</b> sets how often it changes things on you.</li>
           <li><b>AMBIENCE</b> pads add rain, wind, ocean, birds, night, fire, vinyl and city. <b>AUTO</b> lets each style choose.</li>
           <li>Mixer: <b>SEND</b> is echo + reverb, <b>NEW</b> rewrites that part, faders move by themselves while <b>AUTO MIXING</b> is lit (touch one and it is yours for a while).</li>
-          <li><b>REC</b> records to a WAV file. <b>LINK</b> copies a link with the seed and style.</li>
-          <li>Keys: space play/pause, 1–8 styles, N next, F freeze, E echo throw, B break, R new song.</li>
+          <li><b>SESSION TAPE</b> (bottom) keeps the last 10 minutes. Click a section or drag over a stretch, then <b>LISTEN</b> to hear it again, <b>SAVE WAV</b> to export it, or <b>GO BACK</b> to continue the music from that section and remix it differently. <b>★</b> bookmarks the moment.</li>
+          <li><b>LOOP</b> repeats the last four bars exactly, so a good moment does not get away. <b>STORE</b> puts it in a <b>THEME MEMORY</b> slot; clicking a slot makes it the song's base theme and the composer only plays variations around it (<b>THEME LOCK</b>). Shift-click clears a slot.</li>
+          <li>Under each fader: <b>♻ NEW</b> writes a new part, <b>HOLD</b> keeps the part as it is.</li>
+          <li><b>SAVE SET</b> / <b>LOAD SET</b> keep the whole session (song state, mix, instruments, theme memory) in a small file. <b>MIDI OUT</b> exports the tape (or the selection) as MIDI, one track per part. <b>MIDI IN</b> takes the melody of a MIDI file and makes it the theme.</li>
+          <li>The instrument name under each channel is a button: click it to change the sound (shift-click goes back, AUTO follows the style).</li>
+          <li><b>REC</b> records to a WAV file for as long as you like. <b>LINK</b> copies a link with the seed and style.</li>
+          <li>Keys: space play/pause, 1–8 styles, N next, L loop, F freeze, E echo throw, B break, M bookmark, R new song.</li>
         </ul>
       </div>
     </div>

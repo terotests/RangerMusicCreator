@@ -20,19 +20,33 @@ export function knob(el, { value = 0.5, min = 0, max = 1, def = value, onChange 
     draw();
     if (!silent) onChange(v);
   };
-  let startY = 0;
-  let startV = 0;
+  // Turn it like a real knob: the value follows the pointer's angle around the centre,
+  // clockwise is up. Shift turns it finely.
+  let lastA = null;
+  const angle = (e) => {
+    const r = el.getBoundingClientRect();
+    const dx = e.clientX - (r.left + r.width / 2);
+    const dy = e.clientY - (r.top + r.height / 2);
+    return Math.hypot(dx, dy) < r.width * 0.12 ? null : Math.atan2(dy, dx);
+  };
   el.addEventListener('pointerdown', (e) => {
     el.setPointerCapture(e.pointerId);
-    startY = e.clientY;
-    startV = v;
+    lastA = angle(e);
     el.classList.add('active');
     e.preventDefault();
   });
   el.addEventListener('pointermove', (e) => {
     if (!el.hasPointerCapture(e.pointerId)) return;
-    const range = (max - min) * (e.shiftKey ? 0.2 : 1);
-    set(startV + ((startY - e.clientY) / 160) * range);
+    const a = angle(e);
+    if (a === null) return;
+    if (lastA !== null) {
+      let d = a - lastA;
+      if (d > Math.PI) d -= 2 * Math.PI;
+      if (d < -Math.PI) d += 2 * Math.PI;
+      const range = (max - min) * (e.shiftKey ? 0.25 : 1);
+      set(v + (d / ((280 / 180) * Math.PI)) * range);
+    }
+    lastA = a;
   });
   el.addEventListener('pointerup', () => el.classList.remove('active'));
   el.addEventListener('dblclick', () => set(def));
@@ -105,9 +119,10 @@ export function fader(el, { value = 0.75, onChange = () => {}, onTouch = () => {
 }
 
 // A lit key with a caption. color: green | red | white | amber | blue
-export function key(parent, { label = '', color = 'white', num, tag, size = '', onClick, title } = {}) {
+export function key(parent, { label = '', color = 'white', num, tag, size = '', onClick, title, help } = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'ctl';
+  if (help || title) wrap.dataset.help = help || title;
   if (num != null) wrap.insertAdjacentHTML('beforeend', `<span class="num">${num}</span>`);
   const b = document.createElement('button');
   b.className = `key ${size}`;

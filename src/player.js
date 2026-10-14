@@ -2,7 +2,7 @@
 // Turns the composer's bars into sound: a look-ahead scheduler on the audio
 // clock, swing and humanising, side-chain ducking, and the style's effects.
 
-import { LAYERS, STYLES } from './styles.js';
+import { LAYERS, STYLES, STYLE_BY_ID } from './styles.js';
 import { kick, snare, hat, tom, crash, riser, playNote } from './instruments.js';
 import { AmbientLayer } from './ambient.js';
 
@@ -28,8 +28,14 @@ export class Player {
     this.listeners = {};
     this.journey = false;
     this.journeyCount = 0;
+    this.echoOn = false;
     this.styleId = null;
     this.bpm = null;
+    this.history = [];
+    this.loop = null;
+    this.serial = 0;
+    this.voice = {};
+    this.kit = {};
   }
 
   on(evt, fn) {
@@ -77,15 +83,23 @@ export class Player {
 
   startBar(t) {
     const c = this.composer;
-    if (this.journey && c.barInSection >= (c.section?.bars ?? 0) && !c.freeze && !c.pendingStyle) {
-      // At a section boundary, sometimes travel to another style.
-      if (++this.journeyCount >= 3 + Math.floor(Math.random() * 3)) {
-        this.journeyCount = 0;
-        const others = STYLES.filter((s) => s.id !== c.style.id);
-        c.setStyle(others[Math.floor(Math.random() * others.length)].id);
+    if (this.loop) {
+      // Replay the captured bars exactly; the composer waits where it was.
+      const b = this.loop.bars[this.loop.i++ % this.loop.bars.length];
+      this.bar = { events: b.events, info: { ...b.info, messages: [], looping: this.loop.bars.length } };
+    } else {
+      if (this.journey && c.barInSection >= (c.section?.bars ?? 0) && !c.freeze && !c.pendingStyle) {
+        // At a section boundary, sometimes travel to another style.
+        if (++this.journeyCount >= 3 + Math.floor(Math.random() * 3)) {
+          this.journeyCount = 0;
+          const others = STYLES.filter((s) => s.id !== c.style.id);
+          c.setStyle(others[Math.floor(Math.random() * others.length)].id);
+        }
       }
+      this.bar = c.nextBar();
+      this.history.push(this.bar);
+      if (this.history.length > 16) this.history.shift();
     }
-    this.bar = c.nextBar();
     const info = this.bar.info;
     if (info.style !== this.styleId) {
       this.styleId = info.style;
@@ -96,8 +110,32 @@ export class Player {
       this.bpm = info.bpm;
       this.engine.setEchoTime((60 / info.bpm) * c.style.fx.delay);
     }
-    this.queue.push({ time: t, info, events: this.bar.events, stepDur: this.stepDur });
-    this.emit('plan', { time: t, info });
+    const serial = ++this.serial;
+    this.queue.push({ time: t, info, events: this.bar.events, stepDur: this.stepDur, serial });
+    this.emit('plan', { time: t, info, snapshot: this.bar.snapshot });
+  }
+
+  // Loop the last `bars` bars exactly as they played (0 = off).
+  setLoop(bars) {
+    if (!bars) {
+      this.loop = null;
+      return 0;
+    }
+    const src = this.history.slice(-bars);
+    if (!src.length) return 0;
+    this.loop = { bars: src, i: 0 };
+    return src.length;
+  }
+
+  // The instrument a channel plays: the user's pick, or the style's.
+  voiceFor(ch) {
+    const s = this.composer.style;
+    return this.voice[ch] || s[ch]?.voice;
+  }
+
+  kitFor(ch) {
+    const id = this.kit[ch];
+    return (id && STYLE_BY_ID[id]?.kit[ch]) || this.composer.style.kit[ch];
   }
 
   applyStyleFx(style) {
@@ -125,9 +163,9 @@ export class Player {
   play(e, t, sd) {
     const ctx = this.ctx;
     const style = this.composer.style;
-    const kit = style.kit;
     const beat = sd * 4;
     if (e.fx) {
+      if ((e.fx === 'throw' || e.fx === 'spin') && !this.echoOn) return;
       if (e.fx === 'throw') this.channels[e.ch].throwEcho(t, e.beats * beat * 0.5);
       else if (e.fx === 'spin') this.engine.echoSpin(t, e.beats * beat);
       else if (e.fx === 'sweepUp') this.engine.sweep(t, e.bars * 16 * sd, 'highpass');
@@ -139,33 +177,34 @@ export class Player {
     const out = ch.input;
     switch (e.ch) {
       case 'kick':
-        kick(ctx, out, t, e.vel, kit.kick);
+        kick(ctx, out, t, e.vel, this.kitFor('kick'));
         if (style.fx.duck) for (const d of DUCKED) this.channels[d].duckAt(t, style.fx.duck, beat * 0.22);
         break;
       case 'snare':
         if (e.tom) tom(ctx, out, t, e.vel, e.tom);
-        else snare(ctx, out, t, e.vel, kit.snare);
+        else snare(ctx, out, t, e.vel, this.kitFor('snare'));
         break;
       case 'hats':
         if (e.crash) crash(ctx, out, t, e.vel);
-        else hat(ctx, out, t, e.vel, kit.hats, e.open);
+        else hat(ctx, out, t, e.vel, this.kitFor('hats'), e.open);
         break;
       case 'bass':
-        playNote(ctx, out, t, e.midi, e.len * sd * 0.95, e.vel, style.bass.voice);
+        playNote(ctx, out, t, e.midi, e.len * sd * 0.95, e.vel, this.voiceFor('bass'));
         break;
       case 'keys': {
-        const strum = style.keys.voice === 'epiano' || style.keys.voice === 'pizz' ? 0.012 : 0;
-        e.midis.forEach((m, k) => playNote(ctx, out, t + k * strum, m, e.len * sd * 0.92, e.vel * 0.9, style.keys.voice));
+        const v = this.voiceFor('keys');
+        const strum = v === 'epiano' || v === 'pizz' || v === 'harp' ? 0.012 : 0;
+        e.midis.forEach((m, k) => playNote(ctx, out, t + k * strum, m, e.len * sd * 0.92, e.vel * 0.9, v));
         break;
       }
       case 'pad':
-        e.midis.forEach((m) => playNote(ctx, out, t, m, e.len * sd, e.vel, style.pad.voice));
+        e.midis.forEach((m) => playNote(ctx, out, t, m, e.len * sd, e.vel, this.voiceFor('pad')));
         break;
       case 'lead':
-        playNote(ctx, out, t, e.midi, e.len * sd * 0.9, e.vel, style.lead.voice, { glideFrom: e.glideFrom });
+        playNote(ctx, out, t, e.midi, e.len * sd * 0.9, e.vel, this.voiceFor('lead'), { glideFrom: e.glideFrom });
         break;
       case 'arp':
-        playNote(ctx, out, t, e.midi, e.len * sd, e.vel, style.arp.voice);
+        playNote(ctx, out, t, e.midi, e.len * sd, e.vel, this.voiceFor('arp'));
         break;
     }
   }

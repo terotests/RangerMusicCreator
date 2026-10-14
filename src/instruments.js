@@ -530,3 +530,22 @@ export function riser(ctx, out, t, dur) {
   n.stop(t + dur + 0.1);
   cleanup(n, [n, bp, g]);
 }
+
+// ---- what each channel can be switched to ---------------------------------
+
+export const VOICE_CHOICES = {
+  bass: ['lofiBass', 'houseBass', 'synthBass', 'subBass', 'reese', 'dubBass', 'celloBass', 'chipBass'],
+  keys: ['epiano', 'stab', 'brass', 'skank', 'pizz', 'harp', 'mallet', 'pulseChord'],
+  pad: ['warmPad', 'glassPad', 'darkPad', 'strings', 'pulsePad'],
+  lead: ['mallet', 'bell', 'pluck', 'sawLead', 'flute', 'melodica', 'chipLead', 'epiano'],
+  arp: ['arpPluck', 'bellArp', 'harp', 'pluck', 'mallet', 'chipArp'],
+};
+
+export const VOICE_LABEL = {
+  lofiBass: 'WARM BASS', houseBass: 'HOUSE BASS', synthBass: 'SYNTH BASS', subBass: 'SUB BASS', chipBass: '8-BIT BASS',
+  reese: 'REESE BASS', dubBass: 'DUB BASS', celloBass: 'CELLO',
+  warmPad: 'WARM PAD', glassPad: 'GLASS PAD', darkPad: 'DARK PAD', strings: 'STRINGS', pulsePad: '8-BIT PAD',
+  epiano: 'E-PIANO', stab: 'HOUSE STAB', brass: 'SYNTH BRASS', pulseChord: '8-BIT CHORD', skank: 'SKANK ORGAN', pizz: 'PIZZICATO',
+  mallet: 'MALLET', bell: 'BELL', pluck: 'PLUCK', sawLead: 'SAW LEAD', chipLead: '8-BIT LEAD', flute: 'FLUTE', melodica: 'MELODICA',
+  arpPluck: 'SYNTH ARP', bellArp: 'BELL ARP', chipArp: '8-BIT ARP', harp: 'HARP',
+};
