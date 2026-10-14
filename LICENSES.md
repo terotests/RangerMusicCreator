@@ -36,5 +36,11 @@ Rules for adding material:
   modern edition, and get a row in the table above.
 - No AI-generated audio or models.
 
-Recordings you make with the app (REC) are your own; this project claims
-nothing in them.
+Recordings, set files and MIDI exports you make with the app are your own;
+this project claims nothing in them. Melodies you load with MIDI IN stay in
+your browser and set files and are never added to this repository: only load
+music you have the rights to use.
+
+The MCP server uses [`@modelcontextprotocol/sdk`](https://github.com/modelcontextprotocol/typescript-sdk)
+(MIT), [`ws`](https://github.com/websockets/ws) (MIT) and
+[`zod`](https://github.com/colinhacks/zod) (MIT). The browser app does not use them.

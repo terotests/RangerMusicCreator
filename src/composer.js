@@ -50,6 +50,9 @@ export class Composer {
     this.prevKeys = null;
     this.prevPad = null;
     this.lastLead = null;
+    this.hold = new Set(); // parts the user is keeping as they are
+    this.themeLock = false; // stay on a stored theme, only vary around it
+    this.extraThemes = []; // themes imported from MIDI
     this.applyStyle(style, true);
   }
 
@@ -147,12 +150,17 @@ export class Composer {
       }
       return a.join('');
     };
+    const prev = this.drums;
     this.drums = {
       kick: mutate(r.pick(d.kick), 'x', (i) => i === 0),
       snare: mutate(r.pick(d.snare), 'o', (i) => i % 8 === 4 || i === 8),
       hats: mutate(r.pick(d.hats), 'o', () => false),
       open: r.pick(d.open),
     };
+    if (prev && this.hold) {
+      for (const k of ['kick', 'snare', 'hats']) if (this.hold.has(k)) this.drums[k] = prev[k];
+      if (this.hold.has('hats')) this.drums.open = prev.open;
+    }
   }
 
   newBass() {
@@ -175,12 +183,13 @@ export class Composer {
     this.arpOct = this.rng.pick([1, 2, 2]);
   }
 
+  // fromTheme: true / false / undefined (let chance decide) / a theme object to use.
   newMotif(fromTheme) {
     const r = this.rng;
     const useTheme = fromTheme ?? r.chance(0.18 + 0.25 * this.surprise);
     let notes;
     if (useTheme) {
-      const th = r.pick(THEMES);
+      const th = typeof useTheme === 'object' ? useTheme : r.pick(THEMES.concat(this.extraThemes || []));
       const src = th.notes;
       const start = r.int(0, Math.max(0, src.length - 6));
       const speed = r.pick([1, 1, 0.5]);
@@ -331,23 +340,27 @@ export class Composer {
       return;
     }
     if (type === 'build') return;
-    if ((type === 'drop' || type === 'verse' || type === 'bridge') && r.chance(0.2 + 0.4 * p)) {
+    const lock = this.themeLock;
+    if ((type === 'drop' || type === 'verse' || type === 'bridge') && r.chance(0.2 + 0.4 * p) && this.can('lead')) {
       this.newMotif();
       if (!this.motifName) this.say('NEW MELODY');
+    } else if (lock && r.chance(0.5)) {
+      this.motifB = this.vary(this.motif);
+      this.say('THEME VARIATION');
     }
-    if (r.chance(0.04 + 0.2 * p)) this.keyChange();
-    if (r.chance(0.1 + 0.35 * p)) {
+    if (r.chance(0.04 + 0.2 * p) && !lock) this.keyChange();
+    if (r.chance(0.1 + 0.35 * p) && this.can('keys') && this.can('pad')) {
       this.newProgression();
       this.say('NEW CHORDS');
     }
-    if (r.chance(0.1 + 0.4 * p)) {
+    if (r.chance(0.1 + 0.4 * p) && ['kick', 'snare', 'hats'].some((d) => !this.hold.has(d))) {
       this.newDrums();
       this.say('NEW GROOVE');
     }
-    if (r.chance(0.1 + 0.3 * p)) this.newBass();
-    if (r.chance(0.1 + 0.3 * p)) this.newComp();
-    if (r.chance(0.2 * p)) this.newArp();
-    if (r.chance(0.18 * p) && this.style.id !== 'ambient') {
+    if (r.chance(0.1 + 0.3 * p) && this.can('bass')) this.newBass();
+    if (r.chance(0.1 + 0.3 * p) && this.can('keys')) this.newComp();
+    if (r.chance(0.2 * p) && !this.hold.has('arp')) this.newArp();
+    if (r.chance(0.18 * p) && this.style.id !== 'ambient' && !lock) {
       const old = this.bpm;
       const [lo, hi] = this.style.bpm;
       this.bpm = Math.max(lo - 4, Math.min(hi + 4, this.bpm + r.pick([-4, -3, -2, 2, 3, 4])));
@@ -365,6 +378,42 @@ export class Composer {
 
   say(msg) {
     this.messages.push(msg);
+  }
+
+  // May the composer rewrite this part by itself?
+  can(part) {
+    if (this.hold.has(part)) return false;
+    return !(this.themeLock && ['bass', 'keys', 'pad', 'lead'].includes(part));
+  }
+
+  setHold(part, on) {
+    if (on) this.hold.add(part);
+    else this.hold.delete(part);
+  }
+
+  // The musical material of what is playing now: enough to make it the song's theme.
+  material() {
+    const keys = ['bpm', 'scaleName', 'key', 'progression', 'drums', 'bassPat', 'compPat', 'motif', 'motifB', 'motifName', 'arpMode', 'arpOct'];
+    const m = { style: this.style.id };
+    for (const k of keys) m[k] = structuredClone(this[k]);
+    return m;
+  }
+
+  // Make stored material the base of the song from the next bar, and stay on it.
+  useMaterial(m, lock = true) {
+    const { style, ...rest } = structuredClone(m);
+    this.style = STYLE_BY_ID[style] || this.style;
+    Object.assign(this, rest);
+    this.themeLock = lock;
+    this.pendingStyle = null;
+    this.queued = this.queued || 'verse';
+    this.say(lock ? 'THEME RECALLED · VARIATIONS ONLY' : 'THEME RECALLED');
+  }
+
+  // A theme from outside (MIDI): { name, notes: [[degree, beats], ...] }. Used now and quoted later.
+  importTheme(theme) {
+    this.extraThemes = (this.extraThemes || []).filter((t) => t.name !== theme.name).concat(theme);
+    this.newMotif(theme);
   }
 
   setStyle(id) {
@@ -408,6 +457,26 @@ export class Composer {
     }
   }
 
+  // ---- save points ---------------------------------------------------------------
+
+  snapshot() {
+    const keys = ['seed', 'halftime', 'totalBars', 'barInSection', 'prevKeys', 'prevPad', 'lastLead', 'bpm', 'scaleName', 'key', 'progression', 'drums', 'bassPat', 'compPat', 'motif', 'motifB', 'motifName', 'arpMode', 'arpOct'];
+    const snap = { rng: this.rng.s, style: this.style.id, section: this.section && { ...this.section, layers: [...this.section.layers] } };
+    for (const k of keys) snap[k] = structuredClone(this[k]);
+    return snap;
+  }
+
+  restore(snap) {
+    const { rng, style, section, ...rest } = structuredClone(snap);
+    this.rng.s = rng;
+    this.style = STYLE_BY_ID[style];
+    this.section = section && { ...section, layers: new Set(section.layers) };
+    Object.assign(this, rest);
+    this.queued = null;
+    this.pendingStyle = null;
+    this.messages = [];
+  }
+
   // ---- bar planning ------------------------------------------------------------
 
   nextBar() {
@@ -420,7 +489,10 @@ export class Composer {
       if (this.freeze) this.barInSection = 0;
       else this.advanceSection();
     }
+    // A save point at the start of every section, so the song can go back there.
+    if (this.barInSection === 0) this.savePoint = this.snapshot();
     const bar = this.planBar();
+    if (this.barInSection === 0) bar.snapshot = this.savePoint;
     this.barInSection++;
     this.totalBars++;
     return bar;
@@ -440,8 +512,8 @@ export class Composer {
 
     // Small mutations inside a section keep loops from settling.
     if (!this.freeze && b > 0 && b % 4 === 0) {
-      if (r.chance(0.25 * p)) this.motifB = this.vary(this.motif);
-      if (r.chance(0.12 * p)) this.drums.hats = this.mutateHats(this.drums.hats);
+      if (r.chance(0.25 * p) && !this.hold.has('lead')) this.motifB = this.vary(this.motif);
+      if (r.chance(0.12 * p) && this.can('hats')) this.drums.hats = this.mutateHats(this.drums.hats);
     }
 
     const ch = this.chordAt(b);

@@ -17,11 +17,12 @@ are its ice, lime and ember).
 
 ```sh
 npm start          # http://127.0.0.1:8140/
-npm test           # composer tests (Node 20+)
+npm test           # tests (Node 20+, after npm install)
 ```
 
-No build step and no dependencies: it is plain ES modules and Web Audio, so
-any static file server works too. The GitHub Pages workflow publishes `main`.
+The app has no build step and no dependencies: it is plain ES modules and Web
+Audio, so any static file server works too. The GitHub Pages workflow
+publishes `main`. The npm dependencies are only for the MCP server below.
 
 ## The desk
 
@@ -29,15 +30,53 @@ any static file server works too. The GitHub Pages workflow publishes `main`.
 | --- | --- |
 | STYLE SWITCHER 1–8 | Lo-fi, Deep House, Synthwave, Ambient, Chiptune, Liquid DnB, Dub, Adventure. A change lands on the next bar. |
 | TRANSITION | **NEXT** jumps to the next section, **BREAK** / **BUILD** queue one, **JOURNEY** lets it drift between styles by itself, **PLAY** starts and pauses. |
-| PERFORM | **FREEZE** loops the current section, **ECHO THROW** sends everything into a runaway dub echo, **FILTER SWEEP**, **HALF-TIME**. |
-| SONG | **NEW SONG** (new seed), **REC** to a WAV file, **LINK** copies a link with the seed and style, **SURPRISE ME**. |
-| AUDIO EFFECT | Auto mixing (the faders ride themselves per section), echo, reverb, tape wobble; knobs for echo and reverb return, **SURPRISE** and **TEMPO**. |
+| PERFORM | **LOOP** repeats the last 4 bars exactly (the song stops advancing), **FREEZE** loops the current section, **ECHO THROW** sends everything into a runaway dub echo, **FILTER SWEEP**, **HALF-TIME**. |
+| SONG | **NEW SONG** (new seed), **REC** records from now to a WAV file, **LINK** copies a link with the seed and style, **SURPRISE ME**. |
+| AUDIO EFFECT | Auto mixing (the faders ride themselves per section), echo (off by default), reverb, tape wobble; knobs for echo and reverb return, **SURPRISE** and **TEMPO**. |
 | AMBIENCE | Rain, wind, ocean, birds, night, fire, vinyl, city. **AUTO** lets each style pick. |
-| AUDIO MIXER | Per part: send (echo + reverb), **NEW** (rewrite that part), solo, mute, fader with meter. |
+| AUDIO MIXER | Per part: send (echo + reverb), solo, mute, fader with meter, the instrument (click to change, AUTO lets the style choose), **♻ NEW** (rewrite that part) and **HOLD** (keep this part through section changes and surprises). |
+| SESSION TAPE | Everything you play is kept (the last 10 minutes), with each section and its style marked. Click a section or drag a stretch, then **LISTEN** to hear it again, **GO BACK** to continue the song from that exact point, or **SAVE WAV**. **★ MARK** drops a bookmark. |
+| THEME MEMORY | **STORE** keeps what is playing (the loop, or the last 4 bars) in a slot. Clicking a slot recalls it as the song's base theme: chords, bassline and melody stay, and the composer only varies them. **THEME LOCK** turns that on and off. Shift-click empties a slot. |
+| SET & MIDI FILES | **SAVE SET** / **LOAD SET**: the whole set as JSON (song state, mix, instruments, holds, theme memory). **MIDI OUT**: the played bars (or the selected stretch) as a multi-track MIDI file. **MIDI IN**: the melody of a MIDI file becomes a theme the composer quotes and varies. |
 | Screen | Spectrum, scope, the song's structure and active layers, and a log of what the composer just did. |
 | SEQUENCER | The bar that is playing, part by part. |
 
-Keys: space play/pause, 1–8 styles, N next, F freeze, E echo throw, B break, R new song.
+Keys: space play/pause, 1–8 styles, N next, L loop, F freeze, E echo throw, B break, M bookmark, R new song.
+Hover over any control to see what it does in the line under the screen.
+
+## Control it from an AI assistant (MCP)
+
+`mcp/server.mjs` is a local [MCP](https://modelcontextprotocol.io) server. It
+serves the desk on http://127.0.0.1:8140/ and talks to the open page over a
+local WebSocket, so an assistant can play, mix, loop, store themes, go back on
+the tape and export WAV, MIDI and set files while you listen.
+
+```sh
+npm install
+claude mcp add ranger -- node /path/to/RangerMusicCreator/mcp/server.mjs
+```
+
+For Claude Desktop, add to `claude_desktop_config.json`:
+
+```json
+{ "mcpServers": { "ranger": { "command": "node", "args": ["/path/to/RangerMusicCreator/mcp/server.mjs"] } } }
+```
+
+Then open http://127.0.0.1:8140/ and click the page once (browsers only start
+audio after a click). The screen logs `MCP CONNECTED`. Files go to
+`recordings/` in the repo, or to `RANGER_OUT`. Don't run `npm start` at the
+same time: the MCP server uses the same port (or set `PORT`).
+
+Tools: `get_status`, `play`, `pause`, `set_style`, `queue_section`,
+`set_controls`, `set_channel`, `list_instruments`, `new_part`, `hold_part`,
+`set_ambience`, `loop`, `echo_throw`, `filter_sweep`, `new_song`, `bookmark`,
+`list_markers`, `go_back`, `listen`, `export_wav`, `export_midi`,
+`import_midi`, `store_theme`, `recall_theme`, `list_memory`, `theme_lock`,
+`save_set`, `load_set`.
+
+The bridge only connects when the page is opened from `localhost` or
+`127.0.0.1`; the GitHub Pages copy never tries. A macOS app wrapper is not
+included yet.
 
 ## How it composes
 

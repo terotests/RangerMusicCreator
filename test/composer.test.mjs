@@ -44,3 +44,42 @@ for (const style of STYLES) {
     for (const v of [style.bass.voice, style.keys.voice, style.pad.voice, style.lead.voice, style.arp.voice]) assert.ok(PRESETS[v], v);
   });
 }
+
+test('restoring a save point replays the same music from there', () => {
+  const c = new Composer({ seed: 9, style: 'dub' });
+  let saved = null;
+  const after = [];
+  for (let i = 0; i < 80; i++) {
+    const bar = c.nextBar();
+    if (bar.snapshot && i > 20 && !saved) saved = bar.snapshot;
+    if (saved) after.push(JSON.stringify(bar.events));
+  }
+  c.restore(saved);
+  for (let i = 0; i < after.length; i++) assert.equal(JSON.stringify(c.nextBar().events), after[i], `bar ${i}`);
+});
+
+test('held parts and a locked theme are not rewritten by the composer', () => {
+  const c = new Composer({ seed: 3, style: 'house', surprise: 1 });
+  c.nextBar();
+  c.setHold('lead', true);
+  c.setHold('kick', true);
+  const motif = JSON.stringify(c.motif);
+  const kick = c.drums.kick;
+  for (let i = 0; i < 200; i++) c.nextBar();
+  assert.equal(JSON.stringify(c.motif), motif);
+  assert.equal(c.drums.kick, kick);
+
+  const t = new Composer({ seed: 4, style: 'lofi', surprise: 1 });
+  for (let i = 0; i < 10; i++) t.nextBar();
+  const m = t.material();
+  t.useMaterial(m);
+  for (let i = 0; i < 200; i++) t.nextBar();
+  for (const k of ['key', 'scaleName', 'bpm', 'progression', 'motif', 'bassPat', 'compPat']) assert.deepEqual(t[k], m[k], k);
+});
+
+test('an imported theme becomes the melody', () => {
+  const c = new Composer({ seed: 5, style: 'adventure' });
+  c.importTheme({ name: 'MY TUNE', notes: [[0, 1], [2, 1], [4, 1], [7, 2], [4, 1], [2, 2]] });
+  assert.equal(c.motifName, 'MY TUNE');
+  assert.deepEqual(c.motif.slice(0, 3).map((n) => n.deg), [2, 4, 6]);
+});

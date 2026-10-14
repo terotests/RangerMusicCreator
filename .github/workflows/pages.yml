@@ -24,6 +24,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - run: npm ci
       - run: npm test
       - run: mkdir site && cp -r index.html css src LICENSE LICENSES.md site/
       - uses: actions/upload-pages-artifact@v3

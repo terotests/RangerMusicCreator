@@ -33,12 +33,12 @@ html, body {
 #board {
   position: relative;
   width: 1600px;
-  height: 1000px;
+  height: 1250px;
   flex: none;
   transform-origin: top left;
   display: grid;
   grid-template-columns: 790px minmax(0, 1fr);
-  grid-template-rows: 64px 1fr;
+  grid-template-rows: 64px 1fr 244px;
   gap: 0 26px;
   padding: 10px 26px 22px;
   border-radius: 14px;
@@ -116,7 +116,7 @@ h4 { font-size: 13px; }
 .key.on[data-color="amber"] { background: linear-gradient(180deg, #ffe0a0, var(--amber)); box-shadow: 0 0 14px rgba(255,184,61,0.7), 0 2px 0 #1b1c1f; }
 .key.on[data-color="blue"] { background: linear-gradient(180deg, #b9e0ff, var(--blue)); box-shadow: 0 0 14px rgba(74,168,255,0.7), 0 2px 0 #1b1c1f; }
 
-.knob { width: 44px; height: 44px; position: relative; cursor: ns-resize; touch-action: none; border-radius: 50%; }
+.knob { width: 44px; height: 44px; position: relative; cursor: grab; touch-action: none; border-radius: 50%; }
 .knob-cap {
   position: absolute; inset: 0; border-radius: 50%;
   background:
@@ -185,7 +185,9 @@ h4 { font-size: 13px; }
   mask: linear-gradient(90deg, #000 0 10px, transparent 10px calc(100% - 10px), #000 calc(100% - 10px));
 }
 .fader-slot { position: absolute; left: 50%; top: 4px; bottom: 4px; width: 8px; margin-left: -4px; background: #0b0b0c; border-radius: 3px; box-shadow: inset 0 1px 3px #000, 0 1px 0 rgba(255,255,255,0.08); overflow: hidden; }
-.fader-meter { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: linear-gradient(0deg, var(--green) 0 65%, var(--amber) 80%, var(--red) 95%); opacity: 0.75; }
+.fader-meter { position: absolute; left: 0; right: 0; bottom: 0; height: 0; opacity: 0.75;
+  /* The colours stay put on the slot (green low, red only near the top); the bar just reveals them. */
+  background: linear-gradient(0deg, var(--green) 0 65%, var(--amber) 80%, var(--red) 95%) bottom / 100% 282px no-repeat; }
 .fader-cap {
   position: absolute; left: 50%; width: 36px; height: 44px; margin-left: -18px; top: 0; border-radius: 4px;
   background: linear-gradient(180deg, #4a4b50 0, #26272a 30%, #3a3b40 48%, #e4e5e7 49%, #e4e5e7 51%, #3a3b40 52%, #26272a 70%, #4a4b50 100%);
@@ -264,3 +266,43 @@ h4 { font-size: 13px; }
   padding: 8px 16px; border-radius: 999px; font: 600 14px var(--font); opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 11;
 }
 #toast.show { opacity: 1; }
+
+/* ---- help line, instrument buttons, tape ---- */
+
+.info {
+  margin-top: -6px; padding: 5px 10px; min-height: 26px; border-radius: 3px;
+  background: #0b0c0e; box-shadow: inset 0 0 0 1px #2c2d31;
+  color: #9fe3b4; font: 500 13px ui-monospace, "SF Mono", Menlo, Consolas, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.inst {
+  width: 70px; margin-top: 3px; padding: 2px 0; border: 0; border-radius: 2px; cursor: pointer;
+  background: #0b0c0e; box-shadow: inset 0 0 0 1px #2c2d31; color: #9fe3b4;
+  font: 600 9.5px ui-monospace, "SF Mono", Menlo, Consolas, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.inst.auto { color: #6c7a72; }
+.inst:hover { box-shadow: inset 0 0 0 1px #3ee06e; }
+.tape { grid-column: 1 / 3; margin-top: 14px; }
+.tape h3 { text-align: left; }
+.tape-body { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; align-items: start; }
+#tape { width: 100%; height: 92px; display: block; border-radius: 3px; box-shadow: inset 0 0 0 1px #2c2d31; cursor: crosshair; touch-action: none; }
+.tape-read { font: 600 13px ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: #cfd4da; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tape-keys { display: flex; justify-content: space-between; }
+.tape-keys .cap { font-size: 10.5px; }
+
+.strip-row { display: flex; gap: 4px; margin-top: 6px; }
+.key.sm { width: 26px; height: 20px; border-radius: 4px; }
+.strip-row .tag { font-size: 9px; padding: 0 3px; }
+.tape-row2 { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 24px; margin-top: 12px; }
+.tape-row2 h4 { text-align: left; border-bottom: 1px solid var(--line); padding-bottom: 4px; margin-bottom: 8px; }
+.mem-body { display: flex; align-items: flex-start; gap: 14px; }
+.slot {
+  width: 150px; height: 46px; border-radius: 6px; cursor: pointer; text-align: left; padding: 4px 8px;
+  border: 2px solid #4a4b50; background: linear-gradient(180deg, #1d1e21, #121315); color: #8b97aa;
+  font: 600 11px/1.25 var(--font); overflow: hidden;
+}
+.slot b, .slot span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot b { font-size: 13px; color: #cfd4da; }
+.slot.full { border-color: #ffb83d; color: #ffd27a; }
+.slot.full b { color: #fff; }
+.slot.active { background: radial-gradient(circle at 50% 40%, #ffd27a, #ffb83d); color: #222; box-shadow: 0 0 18px rgba(255,184,61,0.7); }
+.slot.active b { color: #000; }
