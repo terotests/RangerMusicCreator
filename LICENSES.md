@@ -1,0 +1,40 @@
+# Where every sound and note comes from
+
+The goal is music anyone can use anywhere, games included, with no royalties
+and no attribution required. So the generator ships **no samples, no loops
+and no recordings**. Everything you hear is made at play time from code in
+this repository, and everything the composer writes comes from rules and a
+random seed.
+
+| What | Source | Licence |
+| --- | --- | --- |
+| Drums (kick, snare, clap, rim, hats, shaker, toms, taiko, crash, chip drums) | Synthesised from oscillators and generated noise, `src/instruments.js` | MIT (this repo) |
+| Instruments (basses, pads, e-piano, stabs, plucks, leads, bells, strings, chip voices) | Subtractive and FM synthesis, `src/instruments.js` | MIT (this repo) |
+| Ambience (rain, wind, ocean, birds, night, fire, vinyl, city) | Generated noise beds plus randomly timed synthetic events, `src/ambient.js` | MIT (this repo) |
+| Reverb | Impulse response generated at run time (decaying filtered noise), `src/engine.js` | MIT (this repo) |
+| Styles, drum and bass patterns, chord progressions | Written for this project as rules and pattern strings, `src/styles.js`. Short rhythmic patterns and chord progressions such as I–V–vi–IV are common musical building blocks, not owned melodies. | MIT (this repo) |
+| Melodic seeds (`src/themes.js`) | Short openings of public-domain works, written out by ear for this project (no published edition, arrangement or recording was copied). The composer re-times them, maps them to the current key and mode and varies them. | Public domain melodies; the encoding is MIT |
+
+Melodic seeds in detail:
+
+| Seed | Work | Why it is public domain |
+| --- | --- | --- |
+| ODE TO JOY | Ludwig van Beethoven, Symphony No. 9 (1824) | Composer died 1827 |
+| FRERE JACQUES | Traditional French round, 18th century | Traditional |
+| GREENSLEEVES | Traditional English, 16th century | Traditional |
+| SCARBOROUGH FAIR | Traditional English ballad | Traditional (the seed is not taken from any modern arrangement) |
+| MOUNTAIN KING | Edvard Grieg, Peer Gynt (1875) | Composer died 1907 |
+| GYMNOPEDIE | Erik Satie, Gymnopédie No. 1 (1888) | Composer died 1925 |
+| SWAN THEME | P. I. Tchaikovsky, Swan Lake (1876) | Composer died 1893 |
+
+Rules for adding material:
+
+- New sounds should stay synthesised. If a sample is ever added, it must be
+  CC0 or public domain, and gets a row here with its source URL and licence.
+- New melodic seeds must be public domain (composer dead for more than 70
+  years, or traditional), written out by ear rather than copied from a
+  modern edition, and get a row in the table above.
+- No AI-generated audio or models.
+
+Recordings you make with the app (REC) are your own; this project claims
+nothing in them.
