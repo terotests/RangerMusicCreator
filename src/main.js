@@ -30,7 +30,7 @@ screen.seed = seed;
 
 const state = {
   autoMix: true,
-  autoAmb: true,
+  autoAmb: false, // ambience starts silent; AUTO lets each style pick
   echo: false,
   verb: true,
   solo: new Set(),
@@ -246,7 +246,7 @@ const ambAuto = key($('.amb-side'), {
     }
   },
 });
-ambAuto.on(true);
+ambAuto.on(false);
 $('#amb-auto').remove();
 
 // ---- audio effect -------------------------------------------------------------

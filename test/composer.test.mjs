@@ -2,7 +2,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Composer } from '../src/composer.js';
-import { STYLES } from '../src/styles.js';
+import { STYLES, STYLE_BY_ID } from '../src/styles.js';
+import { THEMES } from '../src/themes.js';
+import { SCALES } from '../src/theory.js';
 import { PRESETS } from '../src/instruments.js';
 
 function run(seed, style, bars) {
@@ -81,5 +83,43 @@ test('an imported theme becomes the melody', () => {
   const c = new Composer({ seed: 5, style: 'adventure' });
   c.importTheme({ name: 'MY TUNE', notes: [[0, 1], [2, 1], [4, 1], [7, 2], [4, 1], [2, 2]] });
   assert.equal(c.motifName, 'MY TUNE');
-  assert.deepEqual(c.motif.slice(0, 3).map((n) => n.deg), [2, 4, 6]);
+  assert.deepEqual(c.motif.slice(0, 3).map((n) => n.deg), [0, 2, 4]);
+});
+
+test('every built-in theme is whole 4/4 phrases with a known mode', () => {
+  for (const th of THEMES) {
+    const beats = th.notes.reduce((a, [, b]) => a + b, 0);
+    assert.equal(beats % 16, 0, `${th.name} is ${beats} beats`);
+    assert.ok(SCALES[th.mode], `${th.name} mode ${th.mode}`);
+  }
+});
+
+test('a quoted theme plays as written, in its mode, with one chord per bar', () => {
+  const c = new Composer({ seed: 9, style: 'lofi' });
+  const ode = THEMES.find((t) => t.name === 'ODE TO JOY');
+  let tries = 0;
+  do c.quoteTheme(ode);
+  while (c.motif[0].step !== 0 && ++tries < 20); // phrase 1 is picked most of the time
+  assert.equal(c.motifName, 'ODE TO JOY');
+  assert.ok(['major', 'mixolydian'].includes(c.scaleName), c.scaleName);
+  assert.deepEqual(c.motif.slice(0, 8).map((n) => n.deg), [2, 2, 3, 4, 4, 3, 2, 1]);
+  assert.equal(c.progression.length, 4);
+  assert.equal(c.barsPerChord, 1);
+  assert.equal(c.progression[0], 0, 'starts on the tonic chord');
+});
+
+test('a song starts on the style main groove', () => {
+  const c = new Composer({ seed: 4, style: 'lofi' });
+  const d = STYLE_BY_ID.lofi.drums;
+  assert.deepEqual([c.drums.kick, c.drums.snare, c.drums.hats], [d.kick[0], d.snare[0], d.hats[0]]);
+});
+
+test('generated melodies close on the tonic and stay within about an octave and a half', () => {
+  for (let seed = 1; seed < 40; seed++) {
+    const c = new Composer({ seed, style: seed % 2 ? 'lofi' : 'synthwave' });
+    c.newMotif(false);
+    const degs = c.motif.concat(c.motifB).map((n) => n.deg);
+    assert.ok(Math.max(...degs) - Math.min(...degs) <= 11, `seed ${seed}: ${degs}`);
+    assert.equal(((c.motifB.at(-1).deg % 7) + 7) % 7, 0, `seed ${seed} ends on ${c.motifB.at(-1).deg}`);
+  }
 });
