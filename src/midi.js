@@ -55,6 +55,7 @@ export function exportMidi(bars, title = 'Ranger Music Creator') {
   const tempo = [[0, 0, text(0x03, title)], [0, 0, [0xff, 0x58, 4, 4, 2, 24, 8]]];
   const parts = Object.fromEntries(Object.keys(PARTS).map((p) => [p, []]));
   let lastBpm = null;
+  const sounding = new Map();
   bars.forEach((bar, b) => {
     const base = b * 16 * STEP;
     const { bpm, swing = 0 } = bar.info;
@@ -71,8 +72,14 @@ export function exportMidi(bars, title = 'Ranger Music Creator') {
       const notes = p.ch === 9 ? [drumNote(e)] : e.midis || [e.midi];
       const len = p.ch === 9 ? STEP / 2 : Math.max(STEP / 2, Math.round((e.len || 1) * STEP * 0.95));
       for (const n of notes) {
+        // A new note cuts a still-sounding one of the same pitch, so every note-on gets its own note-off.
+        const k = `${p.ch}:${n}`;
+        const prev = sounding.get(k);
+        if (prev && prev[0] > at) prev[0] = at;
+        const off = [at + len, 0, [0x80 | p.ch, n, 0]];
         parts[e.ch].push([at, 1, [0x90 | p.ch, n, vel]]);
-        parts[e.ch].push([at + len, 0, [0x80 | p.ch, n, 0]]);
+        parts[e.ch].push(off);
+        sounding.set(k, off);
       }
     }
   });
@@ -207,5 +214,5 @@ export function melodyTheme({ name, notes }, fallbackName = 'MIDI THEME', maxBea
     const gap = q(next - n.start - len);
     if (gap >= 0.5 && i + 1 < mel.length) out.push([null, gap]);
   }
-  return { name: (name || fallbackName).toUpperCase().slice(0, 24), source: 'imported MIDI', notes: out };
+  return { name: (name || fallbackName).toUpperCase().slice(0, 24), source: 'imported MIDI', mode: minor ? 'minor' : 'major', notes: out };
 }

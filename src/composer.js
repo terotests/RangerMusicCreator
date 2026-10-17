@@ -53,6 +53,8 @@ export class Composer {
     this.hold = new Set(); // parts the user is keeping as they are
     this.themeLock = false; // stay on a stored theme, only vary around it
     this.extraThemes = []; // themes imported from MIDI
+    this.chordBars = null; // bars per chord when a quoted theme sets its own harmony
+    this.leadBars = 0; // bars the current melody has been heard
     this.applyStyle(style, true);
   }
 
@@ -66,7 +68,7 @@ export class Composer {
     if (fresh || !s.scales.includes(this.scaleName)) this.scaleName = r.pick(s.scales);
     if (fresh) this.key = r.int(0, 11);
     this.newProgression();
-    this.newDrums();
+    this.newDrums(true);
     this.newBass();
     this.newComp();
     this.newMotif();
@@ -98,6 +100,7 @@ export class Composer {
     }
     if (this.rng.chance(0.2)) p = p.slice(1).concat(p[0]);
     this.progression = p;
+    this.chordBars = null;
   }
 
   isDiminished(deg) {
@@ -106,9 +109,13 @@ export class Composer {
   }
 
   chordAt(barInSection) {
-    const s = this.style;
-    const i = Math.floor(barInSection / s.barsPerChord) % this.progression.length;
-    return { deg: this.progression[i], next: this.progression[(i + 1) % this.progression.length], change: barInSection % s.barsPerChord === 0 };
+    const per = this.barsPerChord;
+    const i = Math.floor(barInSection / per) % this.progression.length;
+    return { deg: this.progression[i], next: this.progression[(i + 1) % this.progression.length], change: barInSection % per === 0 };
+  }
+
+  get barsPerChord() {
+    return this.chordBars || this.style.barsPerChord;
   }
 
   chordPcs(deg, size) {
@@ -119,7 +126,8 @@ export class Composer {
     const r = this.rng;
     const old = this.keyName;
     const opts = [['up2', 3], ['up5', 2], ['relative', 3], ['mode', 2], ['down1', 1]];
-    const kind = r.weighted(opts);
+    let kind = r.weighted(opts);
+    if (this.chordBars && (kind === 'relative' || kind === 'mode')) kind = 'up2';
     const minorish = ['minor', 'dorian', 'phrygian', 'harmonicMinor'].includes(this.scaleName);
     if (kind === 'up2') this.key = (this.key + 2) % 12;
     else if (kind === 'up5') this.key = (this.key + 5) % 12;
@@ -139,9 +147,19 @@ export class Composer {
 
   // ---- parts ---------------------------------------------------------------
 
-  newDrums() {
+  // core: the style's main groove (the first pattern of each part), unchanged.
+  newDrums(core = false) {
     const r = this.rng;
     const d = this.style.drums;
+    if (core) {
+      const prev = this.drums;
+      this.drums = { kick: d.kick[0], snare: d.snare[0], hats: d.hats[0], open: d.open[0] };
+      if (prev && this.hold) {
+        for (const k of ['kick', 'snare', 'hats']) if (this.hold.has(k)) this.drums[k] = prev[k];
+        if (this.hold.has('hats')) this.drums.open = prev.open;
+      }
+      return;
+    }
     const mutate = (p, extra, keep) => {
       const a = p.split('');
       if (r.chance(0.35 * (0.4 + this.surprise))) {
@@ -186,66 +204,148 @@ export class Composer {
   // fromTheme: true / false / undefined (let chance decide) / a theme object to use.
   newMotif(fromTheme) {
     const r = this.rng;
-    const useTheme = fromTheme ?? r.chance(0.18 + 0.25 * this.surprise);
-    let notes;
+    const useTheme = fromTheme ?? r.chance(0.4 + 0.2 * this.surprise);
     if (useTheme) {
       const th = typeof useTheme === 'object' ? useTheme : r.pick(THEMES.concat(this.extraThemes || []));
-      const src = th.notes;
-      const start = r.int(0, Math.max(0, src.length - 6));
-      const speed = r.pick([1, 1, 0.5]);
-      notes = [];
-      let step = 0;
-      for (let i = start; i < src.length && step < 32; i++) {
-        const [deg, beats] = src[i];
-        const len = Math.max(1, Math.round(beats * 4 * speed));
-        if (deg !== null) notes.push({ step, len: Math.min(len, 32 - step), deg: deg + 2 });
-        step += len;
-      }
-      this.motifName = th.name;
-      this.say(`THEME QUOTE: ${th.name}`);
-    } else {
-      notes = this.generateMotif();
-      this.motifName = null;
+      if (this.quoteTheme(th)) return;
     }
-    if (notes.length < 3) notes = this.generateMotif();
-    this.motif = notes;
-    this.motifB = this.vary(notes);
+    const notes = this.generateMotif();
+    this.motifName = null;
+    this.motif = notes.filter((n) => n.step < 32);
+    this.motifB = notes.filter((n) => n.step >= 32).map((n) => ({ ...n, step: n.step - 32 }));
+    this.leadBars = 0;
+    if (this.chordBars) this.newProgression();
   }
 
+  // Play a known tune as written: one 4-bar phrase (16 beats) in its own mode,
+  // with chords chosen to fit it. Returns false if the phrase is too thin.
+  quoteTheme(th) {
+    const r = this.rng;
+    const phrases = [];
+    let cur = [];
+    let beat = 0;
+    for (const [deg, beats] of th.notes) {
+      if (beat >= 16) {
+        phrases.push(cur);
+        cur = [];
+        beat = 0;
+      }
+      cur.push({ step: Math.round(beat * 4), len: Math.max(1, Math.round(beats * 4)), deg });
+      beat += beats;
+    }
+    phrases.push(cur);
+    const pick = phrases.length > 1 && r.chance(0.35) ? r.int(1, phrases.length - 1) : 0;
+    const notes = phrases[pick].filter((n) => n.deg !== null && n.step < 64);
+    if (notes.length < 3) return false;
+    for (const n of notes) n.len = Math.min(n.len, 64 - n.step);
+    this.useMode(th.mode);
+    this.motif = notes.filter((n) => n.step < 32);
+    this.motifB = notes.filter((n) => n.step >= 32).map((n) => ({ ...n, step: n.step - 32 }));
+    this.progression = this.harmonize(notes);
+    this.chordBars = 1;
+    this.leadBars = 0;
+    this.motifName = th.name;
+    this.say(`THEME: ${th.name}`);
+    return true;
+  }
+
+  // Switch to the style's scale closest to a tune's mode, keeping the tonic.
+  useMode(mode) {
+    if (!mode) return;
+    const minorish = ['minor', 'dorian', 'phrygian', 'harmonicMinor'];
+    const fam = minorish.includes(mode) ? [mode, 'dorian', 'minor', 'harmonicMinor'] : [mode, 'major', 'mixolydian', 'lydian'];
+    this.scaleName = fam.find((x) => this.style.scales.includes(x)) || fam[0];
+  }
+
+  // One chord per bar for a 4-bar phrase: the diatonic triad that holds the
+  // most of that bar's melody (strong beats count more), leaning to I, IV, V, vi.
+  harmonize(notes) {
+    const prior = { 0: 0.6, 3: 0.45, 4: 0.45, 5: 0.35, 1: 0.2, 2: 0.1, 6: 0 };
+    const chords = [];
+    for (let bar = 0; bar < 4; bar++) {
+      const a = bar * 16;
+      const w = new Map();
+      for (const n of notes) {
+        const from = Math.max(a, n.step);
+        const to = Math.min(a + 16, n.step + n.len);
+        if (to <= from) continue;
+        const strong = n.step >= a && (n.step - a) % 8 === 0 ? 1.6 : 1;
+        w.set(pc(n.deg), (w.get(pc(n.deg)) || 0) + (to - from) * strong);
+      }
+      let best = 0;
+      let bestScore = -Infinity;
+      for (const c of [0, 3, 4, 5, 1, 2]) {
+        if (this.isDiminished(c)) continue;
+        const tones = new Set([c, c + 2, c + 4].map(pc));
+        let score = prior[c] * 4;
+        for (const [d, x] of w) score += tones.has(d) ? x : -0.5 * x;
+        if ((bar === 0 || bar === 3) && c === 0) score += 2;
+        if (bar > 0 && c === chords[bar - 1]) score -= 1.5;
+        if (score > bestScore) [best, bestScore] = [c, score];
+      }
+      chords.push(best);
+    }
+    return chords;
+  }
+
+  // A 4-bar phrase that sings: a one-bar rhythm that comes back, mostly
+  // stepwise motion in a five-note scale for the calm styles, an arch shape,
+  // a half close at bar 2 and a full close on the tonic at bar 4.
   generateMotif() {
     const r = this.rng;
     const L = this.style.lead;
-    const cells = Object.entries(L.cells);
-    const notes = [];
-    let deg = r.pick([2, 4, 4, 7, 6]);
-    let lastLeap = 0;
-    for (let c = 0; c < 8; c++) {
+    const cells = Object.entries(L.cells).filter(([c]) => c !== '....');
+    const minorish = ['minor', 'dorian', 'phrygian', 'harmonicMinor'].includes(this.scaleName);
+    const calm = ['lofi', 'ambient', 'adventure', 'dub', 'house'].includes(this.style.id);
+    const pool = calm ? (minorish ? [0, 2, 3, 4, 6] : [0, 1, 2, 4, 5]) : [0, 1, 2, 3, 4, 5, 6];
+    const toDeg = (i) => Math.floor(i / pool.length) * 7 + pool[((i % pool.length) + pool.length) % pool.length];
+    // One-bar rhythm: two to four beats with notes, the rest held or silent.
+    const bar = [];
+    for (let c = 0; c < 4; c++) {
       let cell = r.weighted(cells);
-      if (c % 2 === 1 && r.next() > L.density + 0.3) cell = '....';
-      if (c === 0 && cell === '....') cell = 'x...';
-      for (let k = 0; k < 4; k++) {
-        const ch = cell[k];
-        if (ch === '-' && notes.length) {
-          notes[notes.length - 1].len++;
-          continue;
-        }
-        if (ch !== 'x') continue;
-        let move;
-        if (lastLeap) move = -Math.sign(lastLeap);
-        else {
-          const x = r.next();
-          move = x < 0.45 ? r.pick([-1, 1]) : x < 0.68 ? r.pick([-2, 2]) : x < 0.8 ? 0 : r.pick([-4, -3, 3, 4, 5]);
-        }
-        if (deg + move > 9 || deg + move < -2) move = -move;
-        deg += move;
-        lastLeap = Math.abs(move) >= 3 ? move : 0;
-        notes.push({ step: c * 4 + k, len: 1, deg });
-      }
+      if (c > 0 && r.next() > L.density + 0.35) cell = '....';
+      bar.push(cell);
     }
-    // Let the last note ring a bit and land somewhere stable.
-    if (notes.length) {
-      const last = notes[notes.length - 1];
-      last.len = Math.max(last.len, Math.min(4, 32 - last.step));
+    if (bar[0] === '....') bar[0] = 'x...';
+    const rhythmA = bar.join('');
+    const rhythmEnd = (rhythmA.slice(0, 8) + 'x.......').slice(0, 16);
+    const rhythms = [rhythmA, rhythmEnd, rhythmA, rhythmEnd];
+    const notes = [];
+    const lo = -1;
+    const hi = pool.length + 2;
+    let i = r.pick([0, 2, 0, pool.length - 1]);
+    const phraseOf = [];
+    for (let b = 0; b < 4; b++) {
+      const rh = rhythms[b];
+      const onsets = [];
+      for (let k = 0; k < 16; k++) if (rh[k] === 'x') onsets.push(k);
+      // Bar 3 starts like bar 1, one step higher: repetition the ear can follow.
+      if (b === 2 && phraseOf.length) i = phraseOf[0] + r.pick([1, 1, 0, 2]);
+      onsets.forEach((k, j) => {
+        const lastInBar = j === onsets.length - 1;
+        const nearest = (t) => {
+          const n = pool.length;
+          const cands = [t - n, t, t + n].filter((x) => x >= lo && x <= hi);
+          return cands.sort((x, y) => Math.abs(x - i) - Math.abs(y - i))[0] ?? t;
+        };
+        if (b % 2 === 1 && lastInBar) {
+          // Half close on the 2nd or 5th, full close on the tonic: whichever is nearest.
+          const second = pool.indexOf(1) >= 0 ? pool.indexOf(1) : pool.indexOf(2);
+          i = nearest(b === 3 ? 0 : r.pick([second, pool.indexOf(4)]));
+        } else if (j > 0 || b > 0) {
+          // Rise in bars 1 and 3, fall in bars 2 and 4; mostly steps.
+          const up = b % 2 === 0 ? 1 : -1;
+          const x = r.next();
+          i += x < 0.55 ? up : x < 0.75 ? -up : x < 0.88 ? 0 : 2 * up;
+          if (i > hi) i = hi - 1;
+          if (i < lo) i = lo + 1;
+        }
+        if (b === 0) phraseOf.push(i);
+        let len = 1;
+        while (k + len < 16 && rh[k + len] !== 'x') len++;
+        if (!lastInBar || b % 2 === 0) len = Math.min(len, r.pick([1, 2, 2, 3]));
+        notes.push({ step: b * 16 + k, len, deg: toDeg(i) });
+      });
     }
     return notes;
   }
@@ -341,26 +441,30 @@ export class Composer {
     }
     if (type === 'build') return;
     const lock = this.themeLock;
-    if ((type === 'drop' || type === 'verse' || type === 'bridge') && r.chance(0.2 + 0.4 * p) && this.can('lead')) {
+    // A melody stays a while (a quoted tune longer), so the song has something to come back to.
+    const melodyChance = (type === 'bridge' || type === 'drop' ? 0.15 + 0.35 * p : 0.05 * p) * (this.motifName ? 0.5 : 1);
+    if ((this.leadBars || 0) >= 16 && r.chance(melodyChance) && this.can('lead')) {
       this.newMotif();
       if (!this.motifName) this.say('NEW MELODY');
     } else if (lock && r.chance(0.5)) {
       this.motifB = this.vary(this.motif);
       this.say('THEME VARIATION');
     }
-    if (r.chance(0.04 + 0.2 * p) && !lock) this.keyChange();
-    if (r.chance(0.1 + 0.35 * p) && this.can('keys') && this.can('pad')) {
+    const settled = this.totalBars >= 32;
+    if (settled && r.chance(0.02 + 0.14 * p) && !lock) this.keyChange();
+    if (settled && r.chance(0.06 + 0.3 * p) && this.can('keys') && this.can('pad') && !this.chordBars) {
       this.newProgression();
       this.say('NEW CHORDS');
     }
-    if (r.chance(0.1 + 0.4 * p) && ['kick', 'snare', 'hats'].some((d) => !this.hold.has(d))) {
-      this.newDrums();
-      this.say('NEW GROOVE');
+    if (settled && r.chance(0.05 + 0.25 * p) && ['kick', 'snare', 'hats'].some((d) => !this.hold.has(d))) {
+      const core = r.chance(0.4);
+      this.newDrums(core);
+      this.say(core ? 'MAIN GROOVE' : 'NEW GROOVE');
     }
     if (r.chance(0.1 + 0.3 * p) && this.can('bass')) this.newBass();
     if (r.chance(0.1 + 0.3 * p) && this.can('keys')) this.newComp();
     if (r.chance(0.2 * p) && !this.hold.has('arp')) this.newArp();
-    if (r.chance(0.18 * p) && this.style.id !== 'ambient' && !lock) {
+    if (settled && r.chance(0.18 * p) && this.style.id !== 'ambient' && !lock) {
       const old = this.bpm;
       const [lo, hi] = this.style.bpm;
       this.bpm = Math.max(lo - 4, Math.min(hi + 4, this.bpm + r.pick([-4, -3, -2, 2, 3, 4])));
@@ -393,7 +497,7 @@ export class Composer {
 
   // The musical material of what is playing now: enough to make it the song's theme.
   material() {
-    const keys = ['bpm', 'scaleName', 'key', 'progression', 'drums', 'bassPat', 'compPat', 'motif', 'motifB', 'motifName', 'arpMode', 'arpOct'];
+    const keys = ['bpm', 'scaleName', 'key', 'progression', 'drums', 'bassPat', 'compPat', 'motif', 'motifB', 'motifName', 'arpMode', 'arpOct', 'chordBars'];
     const m = { style: this.style.id };
     for (const k of keys) m[k] = structuredClone(this[k]);
     return m;
@@ -403,6 +507,7 @@ export class Composer {
   useMaterial(m, lock = true) {
     const { style, ...rest } = structuredClone(m);
     this.style = STYLE_BY_ID[style] || this.style;
+    this.chordBars = null;
     Object.assign(this, rest);
     this.themeLock = lock;
     this.pendingStyle = null;
@@ -460,7 +565,7 @@ export class Composer {
   // ---- save points ---------------------------------------------------------------
 
   snapshot() {
-    const keys = ['seed', 'halftime', 'totalBars', 'barInSection', 'prevKeys', 'prevPad', 'lastLead', 'bpm', 'scaleName', 'key', 'progression', 'drums', 'bassPat', 'compPat', 'motif', 'motifB', 'motifName', 'arpMode', 'arpOct'];
+    const keys = ['seed', 'halftime', 'totalBars', 'barInSection', 'prevKeys', 'prevPad', 'lastLead', 'bpm', 'scaleName', 'key', 'progression', 'drums', 'bassPat', 'compPat', 'motif', 'motifB', 'motifName', 'arpMode', 'arpOct', 'chordBars', 'leadBars'];
     const snap = { rng: this.rng.s, style: this.style.id, section: this.section && { ...this.section, layers: [...this.section.layers] } };
     for (const k of keys) snap[k] = structuredClone(this[k]);
     return snap;
@@ -471,6 +576,8 @@ export class Composer {
     this.rng.s = rng;
     this.style = STYLE_BY_ID[style];
     this.section = section && { ...section, layers: new Set(section.layers) };
+    this.chordBars = null;
+    this.leadBars = 0;
     Object.assign(this, rest);
     this.queued = null;
     this.pendingStyle = null;
@@ -512,7 +619,7 @@ export class Composer {
 
     // Small mutations inside a section keep loops from settling.
     if (!this.freeze && b > 0 && b % 4 === 0) {
-      if (r.chance(0.25 * p) && !this.hold.has('lead')) this.motifB = this.vary(this.motif);
+      if (r.chance(0.25 * p) && !this.hold.has('lead') && !this.motifName) this.motifB = this.vary(this.motif);
       if (r.chance(0.12 * p) && this.can('hats')) this.drums.hats = this.mutateHats(this.drums.hats);
     }
 
@@ -591,7 +698,7 @@ export class Composer {
         while (i + len < 16 && pat[i + len] === '-') len++;
         events.push({ ch: 'keys', step: i, midis: voicing, len, vel: (i === 0 ? 0.9 : 0.72) + hum() });
       }
-      if (ch.next !== ch.deg && (b + 1) % s.barsPerChord === 0 && r.chance(0.12 * p) && pat[14] !== 'x') {
+      if (ch.next !== ch.deg && (b + 1) % this.barsPerChord === 0 && r.chance(0.12 * p) && pat[14] !== 'x') {
         const push = voiceLead(voicing, this.chordPcs(ch.next, size), s.keys.low, s.keys.high);
         events.push({ ch: 'keys', step: 14, midis: push, len: 2, vel: 0.7, push: true });
       }
@@ -601,22 +708,27 @@ export class Composer {
     if (L.has('pad') && ch.change) {
       const v = voiceLead(this.prevPad, pcs.slice(0, Math.min(4, pcs.length)), 50, 72);
       this.prevPad = v;
-      events.push({ ch: 'pad', step: 0, midis: v, len: 16 * s.barsPerChord, vel: 0.8 });
+      events.push({ ch: 'pad', step: 0, midis: v, len: 16 * this.barsPerChord, vel: 0.8 });
     }
 
     // Lead
     if (L.has('lead')) {
+      this.leadBars = (this.leadBars || 0) + 1;
       const phraseBar = b % 4;
       const m = phraseBar < 2 ? this.motif : this.motifB;
       const halfIdx = phraseBar % 2;
-      const rest = energy < 0.62 && phraseBar === 3 && r.chance(0.55);
+      const rest = !this.motifName && energy < 0.62 && phraseBar === 3 && r.chance(0.55);
       if (!rest) {
-        const base = this.keyRoot + 12;
+        // One octave shift for the whole phrase, so the tune keeps its shape.
+        let base = this.keyRoot + 12;
+        const all = this.motif.concat(this.motifB).map((n) => degreeToMidi(base, this.scale, n.deg));
+        while (Math.min(...all) + (base - this.keyRoot - 12) < 57 && base < 84) base += 12;
+        while (Math.max(...all) + (base - this.keyRoot - 12) > 86 && base > 48) base -= 12;
         for (const n of m) {
           const st = n.step - halfIdx * 16;
           if (st < 0 || st >= 16) continue;
           let deg = n.deg;
-          if (st % 8 === 0 && !chordTones.has(pc(deg))) {
+          if (!this.motifName && st % 8 === 0 && !chordTones.has(pc(deg))) {
             for (const dd of [1, -1, 2, -2]) {
               if (chordTones.has(pc(deg + dd))) {
                 deg += dd;
@@ -624,9 +736,7 @@ export class Composer {
               }
             }
           }
-          let midi = degreeToMidi(base, this.scale, deg);
-          while (midi > 88) midi -= 12;
-          while (midi < 55) midi += 12;
+          const midi = degreeToMidi(base, this.scale, deg);
           events.push({ ch: 'lead', step: st, midi, len: Math.min(n.len, 16 - st + 2), vel: (st % 4 === 0 ? 0.9 : 0.75) + hum(), glideFrom: this.lastLead });
           this.lastLead = midi;
         }
@@ -663,7 +773,7 @@ export class Composer {
       const hit = c && events.filter((e) => e.ch === c && e.step >= 8);
       if (hit && hit.length) {
         events.push({ fx: 'throw', ch: c, step: hit[0].step, beats: 1 });
-        this.say(`ECHO THROW: ${c.toUpperCase()}`);
+        if (this.echo !== false) this.say(`ECHO THROW: ${c.toUpperCase()}`);
       }
     }
     if (lastBar && r.chance(0.03 * p * dubby)) {
