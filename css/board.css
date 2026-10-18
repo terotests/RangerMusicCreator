@@ -257,6 +257,26 @@ h4 { font-size: 13px; }
 
 #help { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 10; padding: 16px; }
 #help[hidden] { display: none; }
+#save-dlg { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 10; padding: 16px; }
+#save-dlg[hidden] { display: none; }
+.save-card { position: relative; width: min(960px, 100%); background: #1f2024; border: 1px solid #3a3b40; border-radius: 10px; padding: 20px 24px; color: #dfe2e6; font: 14px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; max-height: 92vh; overflow: auto; }
+.save-card h2 { margin: 0 0 4px; font: 800 24px var(--font); }
+.save-hint { margin: 0 0 10px; color: #9aa1ab; font-size: 13px; }
+.save-card button { background: #2b2d33; color: #e8ebef; border: 1px solid #44464d; border-radius: 4px; padding: 5px 10px; font: 700 12px var(--font); cursor: pointer; }
+.save-card button:hover { border-color: #4aa8ff; }
+.save-card .help-close { background: none; border: 0; font-size: 26px; padding: 0; }
+.save-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.save-wave { width: 100%; height: auto; aspect-ratio: 6 / 1; display: block; border-radius: 4px; box-shadow: inset 0 0 0 1px #2c2d31; touch-action: none; cursor: crosshair; }
+.save-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; }
+.save-edge { font: 700 12px var(--font); color: #9aa1ab; display: inline-flex; align-items: center; gap: 4px; }
+.save-edge b { color: #fff; font: 600 14px ui-monospace, "SF Mono", Menlo, Consolas, monospace; min-width: 64px; text-align: center; }
+.save-edge button { padding: 2px 7px; }
+.save-len { flex: 1; text-align: center; font: 600 14px ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: #cfe6ff; }
+.save-row label { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
+.save-grow { flex: 1; }
+.save-name { min-width: 220px; flex: 1 1 260px; background: #0b0c0e; color: #e8ebef; border: 1px solid #44464d; border-radius: 4px; padding: 5px 8px; font: 13px ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+.save-card .save-play { min-width: 82px; background: #1d3a26; border-color: #3ee06e; }
+.save-card .save-go { background: #1d3150; border-color: #4aa8ff; }
 .help-card { position: relative; max-width: 640px; background: #1f2024; border: 1px solid #3a3b40; border-radius: 10px; padding: 22px 26px; color: #dfe2e6; font: 15px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif; max-height: 90vh; overflow: auto; }
 .help-card h2 { margin: 0 0 8px; font: 800 26px var(--font); }
 .help-card li { margin: 4px 0; }
