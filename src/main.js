@@ -10,6 +10,7 @@ import { Screen, SKINS } from './screen.js';
 import { Recorder, download, encodeWav } from './recorder.js';
 import { Tape, fmtTime } from './tape.js';
 import { TapeView } from './tapeview.js';
+import { SaveDialog } from './savedialog.js';
 import { VOICE_CHOICES, VOICE_LABEL } from './instruments.js';
 import { connectBridge } from './bridge.js';
 import { exportMidi, parseMidi, melodyTheme } from './midi.js';
@@ -602,7 +603,11 @@ function frame() {
     rec = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   }
   screen.draw(player.playing || !!preview, rec);
-  if (preview) tapeView.head = preview.from + (engine.now - preview.start) * tape.rate;
+  if (preview) {
+    let off = (engine.now - preview.start) * tape.rate;
+    if (preview.loop) off %= Math.max(1, preview.to - preview.from);
+    tapeView.head = preview.from + off;
+  }
   tapeView.draw();
   updateTapeReadout();
   requestAnimationFrame(frame);
@@ -615,6 +620,7 @@ setInterval(() => !player.playing && player.tick(), 100);
 // ---- keyboard, help, layout -------------------------------------------------------------
 
 document.addEventListener('keydown', (e) => {
+  if (saveDlg.isOpen) return;
   if (e.target.closest('input, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key.toLowerCase();
   if (e.target.closest('button') && (k === ' ' || k === 'enter')) return;
@@ -676,7 +682,7 @@ const tapeView = new TapeView($('#tape'), tape, (sel) => {
 const tapeKeys = $('#tape-keys');
 key(tapeKeys, { label: 'LISTEN', color: 'green', help: 'LISTEN: pause the live music and play the selected stretch (or the last 30 s) from the tape. PLAY returns to live.', onClick: () => (preview ? stopPreview() : listen()) });
 key(tapeKeys, { label: 'GO BACK', color: 'amber', help: 'GO BACK: the composer returns to the selected section and plays on from there, exactly as it went, until you change something.', onClick: () => goBack() });
-key(tapeKeys, { label: 'SAVE WAV', color: 'white', help: 'SAVE WAV: export the selected stretch (or the whole tape) as a WAV file.', onClick: () => saveTape() });
+key(tapeKeys, { label: 'SAVE WAV', color: 'white', help: 'SAVE WAV: open the save window. Pick the stretch, listen to it, then save it as a WAV file.', onClick: () => saveDlg.open(selection) || toast('Nothing on the tape yet') });
 const markKey = key(tapeKeys, { label: '★ MARK', color: 'amber', help: 'MARK: bookmark this moment on the tape (key M).', onClick: () => bookmark() });
 
 function rangeOrLast(seconds) {
@@ -684,18 +690,19 @@ function rangeOrLast(seconds) {
   return { from: Math.max(tape.firstFrame, tape.total - seconds * tape.rate), to: tape.total };
 }
 
-function listen(range = rangeOrLast(30)) {
+function listen(range = rangeOrLast(30), loop = false) {
   if (!tape.total) return toast('Nothing on the tape yet');
   if (player.playing) pause();
   stopPreview();
   const buf = tape.slice(range.from, range.to);
   const src = engine.ctx.createBufferSource();
   src.buffer = buf;
+  src.loop = !!loop;
   src.connect(engine.ctx.destination);
   src.connect(engine.analyser);
   engine.ctx.resume();
   src.start();
-  preview = { src, from: range.from, to: range.to, start: engine.now };
+  preview = { src, from: range.from, to: range.to, start: engine.now, loop: !!loop };
   src.onended = () => {
     if (preview && preview.src === src) stopPreview();
   };
@@ -745,9 +752,12 @@ function tapeWav(range) {
   return encodeWav(tape.slice(range.from, range.to));
 }
 
-function saveTape(range = selection && selection.to > selection.from ? selection : { from: tape.firstFrame, to: tape.total }) {
+function tapeName(range) {
+  return `ranger-${composer.style.id}-${seed}-${fmtTime(range.from / tape.rate).replace(':', 'm')}s.wav`;
+}
+
+function saveTape(range = selection && selection.to > selection.from ? selection : { from: tape.firstFrame, to: tape.total }, name = tapeName(range)) {
   if (!tape.total) return toast('Nothing on the tape yet');
-  const name = `ranger-${composer.style.id}-${seed}-${fmtTime(range.from / tape.rate).replace(':', 'm')}s.wav`;
   download(tapeWav(range), name);
   toast(`Saved ${name}`);
 }
@@ -773,6 +783,17 @@ function updateTapeReadout() {
 }
 
 // ---- theme memory ------------------------------------------------------------------------
+
+const saveDlg = new SaveDialog($('#save-dlg'), {
+  tape,
+  bars: () => played.map((p) => p.frame),
+  listen: (r, loop) => listen(r, loop),
+  stop: stopPreview,
+  preview: () => preview,
+  now: () => engine.now,
+  save: (r, name) => saveTape(r, name),
+  name: tapeName,
+});
 
 const played = []; // every bar as it was heard, with its place on the tape (for MIDI export)
 const memory = [null, null, null, null];
