@@ -96,6 +96,7 @@ export class Player {
           c.setStyle(others[Math.floor(Math.random() * others.length)].id);
         }
       }
+      c.echo = this.echoOn;
       this.bar = c.nextBar();
       this.history.push(this.bar);
       if (this.history.length > 16) this.history.shift();

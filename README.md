@@ -33,7 +33,7 @@ publishes `main`. The npm dependencies are only for the MCP server below.
 | PERFORM | **LOOP** repeats the last 4 bars exactly (the song stops advancing), **FREEZE** loops the current section, **ECHO THROW** sends everything into a runaway dub echo, **FILTER SWEEP**, **HALF-TIME**. |
 | SONG | **NEW SONG** (new seed), **REC** records from now to a WAV file, **LINK** copies a link with the seed and style, **SURPRISE ME**. |
 | AUDIO EFFECT | Auto mixing (the faders ride themselves per section), echo (off by default), reverb, tape wobble; knobs for echo and reverb return, **SURPRISE** and **TEMPO**. |
-| AMBIENCE | Rain, wind, ocean, birds, night, fire, vinyl, city. **AUTO** lets each style pick. |
+| AMBIENCE | Rain, wind, ocean, birds, night, fire, vinyl, city. Off at start; **AUTO** lets each style pick. |
 | AUDIO MIXER | Per part: send (echo + reverb), solo, mute, fader with meter, the instrument (click to change, AUTO lets the style choose), **♻ NEW** (rewrite that part) and **HOLD** (keep this part through section changes and surprises). |
 | SESSION TAPE | Everything you play is kept (the last 10 minutes), with each section and its style marked. Click a section or drag a stretch, then **LISTEN** to hear it again, **GO BACK** to continue the song from that exact point, or **SAVE WAV**. **★ MARK** drops a bookmark. |
 | THEME MEMORY | **STORE** keeps what is playing (the loop, or the last 4 bars) in a slot. Clicking a slot recalls it as the song's base theme: chords, bassline and melody stay, and the composer only varies them. **THEME LOCK** turns that on and off. Shift-click empties a slot. |
@@ -86,12 +86,18 @@ included yet.
 - `src/composer.js`: plans one bar at a time and returns plain events.
   Sections follow a weighted walk (intro → verse → build → drop → break …),
   each with an energy that decides which layers play. At section boundaries
-  it may change key, chords, groove, bassline, melody or tempo, go
-  half-time, or quote a public-domain theme; inside sections it mutates
-  hats and melody variations and adds fills, echo throws and a silence
-  before drops. The **SURPRISE** knob scales all of it. Melodies are short
-  motifs with an answer phrase (inversion, sequence, ornament, rhythm
-  shift), snapped to chord tones on strong beats.
+  it may change key, chords, groove, bassline, melody or tempo, or go
+  half-time; inside sections it varies the hats and the melody and adds
+  fills, echo throws and a silence before drops. The **SURPRISE** knob
+  scales all of it. A song starts on the style's main groove, and the
+  first sections stay put so there is something to come back to.
+- Melodies: often a phrase of a public-domain tune (`src/themes.js`,
+  sources in [LICENSES.md](LICENSES.md)), played as written in its own mode
+  with chords picked to fit each bar. Otherwise a generated 4-bar phrase:
+  a one-bar rhythm that returns, mostly stepwise in a five-note scale for
+  the calm styles, rising then falling, with a half close at bar 2 and an
+  end on the tonic. A melody is heard for at least a section before it
+  can change.
 - `src/player.js`: look-ahead scheduler on the audio clock, swing and
   humanising, side-chain ducking from the kick.
 - `src/engine.js`: channel strips, ping-pong echo with filtered feedback,
