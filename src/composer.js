@@ -125,13 +125,15 @@ export class Composer {
   keyChange() {
     const r = this.rng;
     const old = this.keyName;
-    const opts = [['up2', 3], ['up5', 2], ['relative', 3], ['mode', 2], ['down1', 1]];
+    const opts = this.style.keyMoves || [['up2', 3], ['up5', 2], ['relative', 3], ['mode', 2], ['down1', 1]];
     let kind = r.weighted(opts);
     if (this.chordBars && (kind === 'relative' || kind === 'mode')) kind = 'up2';
     const minorish = ['minor', 'dorian', 'phrygian', 'harmonicMinor'].includes(this.scaleName);
     if (kind === 'up2') this.key = (this.key + 2) % 12;
     else if (kind === 'up5') this.key = (this.key + 5) % 12;
     else if (kind === 'down1') this.key = (this.key + 11) % 12;
+    else if (kind === 'up4') this.key = (this.key + 4) % 12; // up a major third, a chromatic-mediant jump
+    else if (kind === 'down4') this.key = (this.key + 8) % 12;
     else if (kind === 'relative') {
       const target = minorish ? this.style.scales.find((x) => ['major', 'lydian', 'mixolydian'].includes(x)) : this.style.scales.find((x) => ['minor', 'dorian', 'harmonicMinor'].includes(x));
       if (target) {
@@ -392,7 +394,7 @@ export class Composer {
 
   makeSection(type) {
     const r = this.rng;
-    const def = SECTIONS[type];
+    const def = type === 'intro' && this.style.introBars ? { ...SECTIONS.intro, bars: this.style.introBars } : SECTIONS[type];
     const energy = r.float(def.energy[0], def.energy[1]);
     const choices = [];
     for (let b = def.bars[0]; b <= def.bars[1]; b += 4) choices.push(b);
@@ -451,7 +453,7 @@ export class Composer {
       this.say('THEME VARIATION');
     }
     const settled = this.totalBars >= 32;
-    if (settled && r.chance(0.02 + 0.14 * p) && !lock) this.keyChange();
+    if (settled && r.chance((0.02 + 0.14 * p) * (this.style.keyRate || 1)) && !lock) this.keyChange();
     if (settled && r.chance(0.06 + 0.3 * p) && this.can('keys') && this.can('pad') && !this.chordBars) {
       this.newProgression();
       this.say('NEW CHORDS');

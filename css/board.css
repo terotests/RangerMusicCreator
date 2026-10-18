@@ -232,10 +232,10 @@ h4 { font-size: 13px; }
 .bottom { display: grid; grid-template-columns: minmax(0, 1fr) 196px; gap: 16px; margin-top: auto; }
 .switcher { display: flex; flex-direction: column; }
 .sw-top { display: flex; gap: 14px; justify-content: flex-start; margin-bottom: 10px; }
-.sw-buttons { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
-.sw-buttons .ctl .cap { font-size: 12px; font-weight: 600; margin-top: 6px; }
+.sw-buttons { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; }
+.sw-buttons .ctl .cap { font-size: 10px; font-weight: 600; margin-top: 6px; letter-spacing: -0.3px; }
 .key.sw {
-  width: 56px; height: 56px; border-radius: 6px;
+  width: 48px; height: 48px; border-radius: 6px;
   background: radial-gradient(circle at 50% 40%, #e9ecef 0, #b8bcc2 60%, #9ea2a8 100%);
   box-shadow: 0 0 0 3px #111, 0 0 0 4px #4a4b50, 0 4px 8px rgba(0,0,0,0.6), inset 0 -3px 6px rgba(0,0,0,0.25);
 }
