@@ -621,7 +621,7 @@ document.addEventListener('keydown', (e) => {
   if (k === ' ') {
     e.preventDefault();
     player.playing ? pause() : play();
-  } else if (k >= '1' && k <= '8') pickStyle(STYLES[Number(k) - 1].id);
+  } else if (k >= '1' && k <= '9' && STYLES[Number(k) - 1]) pickStyle(STYLES[Number(k) - 1].id);
   else if (k === 'n') nextKey.el.click();
   else if (k === 'l') loopKey.el.click();
   else if (k === 'm') bookmark();

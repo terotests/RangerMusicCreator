@@ -267,6 +267,44 @@ export const STYLES = [
     fx: { verb: 4, delay: 0.75, feedback: 0.35, tape: false, duck: 0, lowpass: 14000 },
     ambience: ['wind', 'fire'],
   },
+  {
+    // Style traits taken from 90s tracker music (demoscene): around 130 BPM,
+    // a syncopated breakbeat, modal I-bVII loops and sections that jump a
+    // major third to a new key, mid-forward sampler tone with soft highs.
+    id: 'scene',
+    name: 'DEMO SCENE',
+    mood: 'tracker breakbeats and key jumps',
+    bpm: [126, 134],
+    swing: 0,
+    scales: ['mixolydian', 'dorian'],
+    progressions: [[0, 6, 1, 6], [0, 6, 0, 6], [0, 6, 3, 0], [0, 3, 6, 0], [0, 0, 6, 3], [3, 6, 0, 0]],
+    chordSize: 3,
+    barsPerChord: 1,
+    keyMoves: [['up4', 3], ['down4', 2], ['up2', 1], ['mode', 1]],
+    keyRate: 2.5,
+    introBars: [8, 16],
+    drums: {
+      kick: ['x..x.x..x.....x.', 'x..x....x.x...x.', 'x.....x.x.....x.'],
+      snare: ['....x..o....x...', '..o.x.o.....x.o.', '....x.o.o...x.x.'],
+      hats: ['..x.x.xxx.x.x.x.', '..x...x...x...x.', 'x.x.x.xxx.x.x.x.'],
+      open: ['................', '......x.......x.'],
+    },
+    kit: {
+      kick: { pitch: 150, end: 56, decay: 0.24, click: 0.5, drive: 0.3, gain: 0.85 },
+      snare: { kind: 'snare', tone: 200, decay: 0.18, noise: 0.9, color: 4200, gain: 0.58 },
+      hats: { kind: 'noise', decay: 0.045, color: 9000, gain: 0.28 },
+    },
+    bass: { patterns: ['x.x.x.x.x.x.x.x.', 'x.o.x.o.x.o.x.o.', 'x--.x.x.x--.x.xa', 'x---x---x---x-a-'], voice: 'synthBass', octave: 2 },
+    keys: { patterns: ['x---------------', 'x-------x-------', 'x..x..x...x..x..'], voice: 'stab', low: 55, high: 76 },
+    pad: { voice: 'strings' },
+    lead: { voice: 'sawLead', density: 0.5, octave: 5, cells: { 'x...': 3, 'x-x.': 2, 'x.x.': 2, 'x---': 2, '....': 2, 'x.xx': 1 } },
+    arp: { voice: 'arpPluck', rate: 1, modes: ['up', 'updown'] },
+    layers: { kick: 0.4, snare: 0.45, hats: 0.35, bass: 0.3, keys: 0.5, pad: 0, lead: 0.5, arp: 0.6 },
+    mix: { kick: 0.68, snare: 0.68, hats: 0.6, bass: 0.6, keys: 0.66, pad: 0.7, lead: 0.7, arp: 0.58, amb: 0.4 },
+    sends: { kick: 0.04, snare: 0.35, hats: 0.12, bass: 0, keys: 0.4, pad: 0.5, lead: 0.5, arp: 0.5, amb: 0.3 },
+    fx: { verb: 3, delay: 0.75, feedback: 0.4, tape: false, duck: 0.25, lowpass: 14000 },
+    ambience: ['night'],
+  },
 ];
 
 export const STYLE_BY_ID = Object.fromEntries(STYLES.map((s) => [s.id, s]));

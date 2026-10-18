@@ -28,7 +28,7 @@ publishes `main`. The npm dependencies are only for the MCP server below.
 
 | Area | What it does |
 | --- | --- |
-| STYLE SWITCHER 1–8 | Lo-fi, Deep House, Synthwave, Ambient, Chiptune, Liquid DnB, Dub, Adventure. A change lands on the next bar. |
+| STYLE SWITCHER 1–9 | Lo-fi, Deep House, Synthwave, Ambient, Chiptune, Liquid DnB, Dub, Adventure, Demo Scene. A change lands on the next bar. |
 | TRANSITION | **NEXT** jumps to the next section, **BREAK** / **BUILD** queue one, **JOURNEY** lets it drift between styles by itself, **PLAY** starts and pauses. |
 | PERFORM | **LOOP** repeats the last 4 bars exactly (the song stops advancing), **FREEZE** loops the current section, **ECHO THROW** sends everything into a runaway dub echo, **FILTER SWEEP**, **HALF-TIME**. |
 | SONG | **NEW SONG** (new seed), **REC** records from now to a WAV file, **LINK** copies a link with the seed and style, **SURPRISE ME**. |
@@ -41,7 +41,7 @@ publishes `main`. The npm dependencies are only for the MCP server below.
 | Screen | Spectrum, scope, the song's structure and active layers, and a log of what the composer just did. |
 | SEQUENCER | The bar that is playing, part by part. |
 
-Keys: space play/pause, 1–8 styles, N next, L loop, F freeze, E echo throw, B break, M bookmark, R new song.
+Keys: space play/pause, 1–9 styles, N next, L loop, F freeze, E echo throw, B break, M bookmark, R new song.
 Hover over any control to see what it does in the line under the screen.
 
 ## Control it from an AI assistant (MCP)
@@ -114,6 +114,14 @@ window.ranger.pause();
 ```
 
 `Composer` has no audio dependencies and runs in Node as well.
+
+The Demo Scene style was built from an analysis of a 90s tracker track
+(tempo, drum grid, chord changes, spectrum), not from its notes: about
+130 BPM, a syncopated breakbeat (kick on 1, the "a" of 1, 2-and and 3,
+backbeat snare with ghost notes, off-beat hats), modal I–bVII loops,
+sections that jump a major third to a new key, a long intro, 16th-note
+arpeggios and a warm low-passed top end. Styles can set `keyMoves`,
+`keyRate` and `introBars` for this.
 
 ## License
 
