@@ -98,6 +98,19 @@ included yet.
   the calm styles, rising then falling, with a half close at bar 2 and an
   end on the tonic. A melody is heard for at least a section before it
   can change.
+- Harmony (`src/theory.js`, `harmonize` and `planCadence` in the composer):
+  - Tune phrases are harmonized as a whole, not bar by bar: chords must fit
+    the melody and follow each other (tonic → subdominant → dominant →
+    tonic). A phrase that ends on the tonic closes V–I, one that ends
+    elsewhere stops on V.
+  - Chord loops in major and minor sometimes get a secondary dominant
+    (V7/ii, V7/V, V7/vi…), and minor keys a major V with the raised leading
+    tone. A generated melody takes the chord's altered note; a quoted tune
+    only gets such a chord where its notes allow it.
+  - Section ends can turn around to the dominant of the next section's
+    first chord (in a mode, to its own cadence chord, e.g. ♭VII–I in
+    mixolydian). A key change is prepared by the new key's V7. DEMO SCENE
+    keeps its abrupt jumps (`cadences: false`).
 - `src/player.js`: look-ahead scheduler on the audio clock, swing and
   humanising, side-chain ducking from the kick.
 - `src/engine.js`: channel strips, ping-pong echo with filtered feedback,

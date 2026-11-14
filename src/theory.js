@@ -65,7 +65,10 @@ export function voiceLead(prev, pcs, lo = 52, hi = 76) {
   const candidates = [];
   const n = pcs.length;
   for (let inv = 0; inv < n; inv++) {
-    for (let base = lo - 12; base <= hi; base += 12) {
+    // base must be a C (a multiple of 12): base + pc is then that pitch class.
+    // (Starting from lo - 12 shifted every chord by lo mod 12: with the pad's
+    // lo = 50 a C major chord came out as D major, a whole step above the bass.)
+    for (let base = Math.floor(lo / 12) * 12 - 12; base <= hi; base += 12) {
       const v = [];
       let last = -Infinity;
       for (let k = 0; k < n; k++) {
@@ -104,4 +107,49 @@ export function voiceLead(prev, pcs, lo = 52, hi = 76) {
 
 function avg(a) {
   return a.reduce((s, x) => s + x, 0) / a.length;
+}
+
+// ---- chord specs -------------------------------------------------------------
+// A chord in a progression is either a scale degree (a diatonic triad or
+// seventh chord built from the key's own scale) or an object for a chord from
+// outside the scale: { deg, q } builds quality q on that degree's root, and
+// { pc, q } on an absolute pitch class (used for the dominant of a new key).
+// q 'dom' is a dominant: major triad with a minor seventh, the chord that
+// pulls a fifth down to its target (V7, or a secondary dominant V7/x).
+
+const QUALITY = { dom: [0, 4, 7, 10], maj: [0, 4, 7, 11], min: [0, 3, 7, 10] };
+const QUALITY_NAME = { dom: ['', '7'], maj: ['', 'maj7'], min: ['m', 'm7'] };
+
+export const mod12 = (m) => ((m % 12) + 12) % 12;
+
+export function sameChord(a, b) {
+  if (typeof a === 'number' || typeof b === 'number') return a === b;
+  return !!a && !!b && a.deg === b.deg && a.pc === b.pc && a.q === b.q;
+}
+
+// { rootPc, pcs, fifthPc, name } for a chord spec in a key.
+export function resolveChord(root, scale, spec, size) {
+  if (typeof spec === 'number') {
+    const pcs = chordDegrees(spec, size).map((d) => mod12(degreeToMidi(root, scale, d)));
+    return { rootPc: pcs[0], pcs, fifthPc: pcs[2], name: chordName(root, scale, spec, size) };
+  }
+  const rootPc = spec.pc ?? mod12(degreeToMidi(root, scale, spec.deg));
+  const ivs = QUALITY[spec.q].slice(0, size >= 4 ? 4 : 3);
+  const pcs = ivs.map((i) => mod12(rootPc + i));
+  const [tri, sev] = QUALITY_NAME[spec.q];
+  return { rootPc, pcs, fifthPc: mod12(rootPc + 7), name: noteName(rootPc) + (size >= 4 ? sev : tri) };
+}
+
+// Notes of the scale that a chord replaces with a chromatic neighbour, as
+// Map(scale pc -> semitone shift to the chord tone): over D7 in C major, F -> +1.
+// A melody note on such a pitch would grind a semitone against the chord.
+export function chromaticShifts(root, scale, pcs) {
+  const inScale = new Set(scale.map((s) => mod12(root + s)));
+  const out = new Map();
+  for (const c of pcs) {
+    if (inScale.has(c)) continue;
+    if (inScale.has(mod12(c - 1))) out.set(mod12(c - 1), 1);
+    else if (inScale.has(mod12(c + 1))) out.set(mod12(c + 1), -1);
+  }
+  return out;
 }

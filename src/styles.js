@@ -6,6 +6,9 @@
 //   drums:  X accent, x hit, o ghost, . rest
 //   bass:   x chord root, o octave up, f fifth, a approach note to the next chord, - hold, . rest
 //   keys:   x chord, - hold, . rest
+// secondary: how often a new chord loop gets a secondary dominant (V7/x) or,
+// in minor, a major V. cadences: false keeps section ends and key changes
+// unprepared (DEMO SCENE's abrupt jumps are part of the style).
 // Layer thresholds: a layer may play in a section whose energy is above it.
 
 export const LAYERS = ['kick', 'snare', 'hats', 'bass', 'keys', 'pad', 'lead', 'arp'];
@@ -19,6 +22,7 @@ export const STYLES = [
     swing: 0.2,
     scales: ['dorian', 'minor', 'major', 'mixolydian'],
     progressions: [[1, 4, 0, 0], [0, 5, 1, 4], [3, 2, 1, 0], [5, 4, 3, 4], [0, 3, 1, 4], [1, 4, 2, 5]],
+    secondary: 0.6,
     chordSize: 4,
     barsPerChord: 1,
     drums: {
@@ -51,6 +55,7 @@ export const STYLES = [
     swing: 0.08,
     scales: ['minor', 'dorian', 'major'],
     progressions: [[0, 5, 3, 4], [0, 3, 0, 4], [0, 6, 5, 6], [1, 4, 0, 5], [0, 0, 3, 3]],
+    secondary: 0.3,
     chordSize: 4,
     barsPerChord: 1,
     drums: {
@@ -83,6 +88,7 @@ export const STYLES = [
     swing: 0,
     scales: ['minor', 'dorian', 'lydian'],
     progressions: [[0, 5, 2, 6], [0, 3, 5, 4], [5, 3, 0, 4], [0, 6, 5, 4], [0, 2, 3, 4]],
+    secondary: 0.1,
     chordSize: 3,
     barsPerChord: 1,
     drums: {
@@ -115,6 +121,7 @@ export const STYLES = [
     swing: 0,
     scales: ['lydian', 'major', 'dorian', 'minor'],
     progressions: [[0, 3, 0, 4], [0, 5, 3, 0], [0, 1, 0, 3], [5, 3, 0, 0], [0, 4, 5, 3]],
+    secondary: 0.2,
     chordSize: 4,
     barsPerChord: 2,
     drums: {
@@ -147,6 +154,7 @@ export const STYLES = [
     swing: 0,
     scales: ['major', 'minor', 'mixolydian', 'dorian'],
     progressions: [[0, 4, 5, 3], [0, 3, 4, 0], [5, 3, 0, 4], [0, 5, 3, 4], [0, 6, 5, 4]],
+    secondary: 0.45,
     chordSize: 3,
     barsPerChord: 1,
     drums: {
@@ -179,6 +187,7 @@ export const STYLES = [
     swing: 0.04,
     scales: ['minor', 'dorian', 'major'],
     progressions: [[0, 5, 2, 6], [1, 4, 0, 5], [0, 3, 1, 4], [3, 4, 0, 0]],
+    secondary: 0.3,
     chordSize: 4,
     barsPerChord: 2,
     drums: {
@@ -211,6 +220,7 @@ export const STYLES = [
     swing: 0.12,
     scales: ['minor', 'dorian', 'major', 'mixolydian'],
     progressions: [[0, 3, 0, 3], [0, 6, 5, 6], [0, 0, 3, 4], [0, 5, 0, 5]],
+    secondary: 0.1,
     chordSize: 3,
     barsPerChord: 1,
     drums: {
@@ -243,6 +253,7 @@ export const STYLES = [
     swing: 0,
     scales: ['harmonicMinor', 'minor', 'dorian', 'major'],
     progressions: [[0, 5, 3, 4], [0, 6, 5, 4], [0, 3, 4, 0], [5, 6, 0, 0], [0, 2, 5, 4]],
+    secondary: 0.5,
     chordSize: 3,
     barsPerChord: 1,
     drums: {
@@ -278,6 +289,8 @@ export const STYLES = [
     swing: 0,
     scales: ['mixolydian', 'dorian'],
     progressions: [[0, 6, 1, 6], [0, 6, 0, 6], [0, 6, 3, 0], [0, 3, 6, 0], [0, 0, 6, 3], [3, 6, 0, 0]],
+    secondary: 0,
+    cadences: false,
     chordSize: 3,
     barsPerChord: 1,
     keyMoves: [['up4', 3], ['down4', 2], ['up2', 1], ['mode', 1]],

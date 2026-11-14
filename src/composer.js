@@ -11,7 +11,7 @@
 
 import { Rng } from './rng.js';
 import { STYLES, STYLE_BY_ID, LAYERS } from './styles.js';
-import { SCALES, SCALE_LABEL, degreeToMidi, chordDegrees, chordName, voiceLead, noteName } from './theory.js';
+import { SCALES, SCALE_LABEL, degreeToMidi, chordDegrees, voiceLead, noteName, resolveChord, chromaticShifts, sameChord, mod12 } from './theory.js';
 import { THEMES } from './themes.js';
 
 const SECTIONS = {
@@ -33,6 +33,14 @@ const NEXT = {
 };
 
 const pc = (d) => ((d % 7) + 7) % 7;
+
+// Scales where V is a major chord (or can be made one) and secondary
+// dominants sound at home. The modes keep their own colour instead.
+const TONAL = ['major', 'minor', 'harmonicMinor'];
+const MINORISH = ['minor', 'dorian', 'phrygian', 'harmonicMinor'];
+// The chord that leads home in each mode without leaving it:
+// bVII-I in mixolydian, IV-i in dorian, II-I in lydian, bII-i in phrygian.
+const MODAL_CADENCE = { mixolydian: 6, dorian: 3, lydian: 1, phrygian: 1 };
 
 export class Composer {
   constructor({ seed = 1, style = 'lofi', surprise = 0.5 } = {}) {
@@ -99,8 +107,34 @@ export class Composer {
       p[i] = this.rng.pick(ok);
     }
     if (this.rng.chance(0.2)) p = p.slice(1).concat(p[0]);
-    this.progression = p;
+    this.progression = this.addDominants(p, (s.secondary ?? 0.2) * (0.5 + this.surprise));
     this.chordBars = null;
+  }
+
+  // Swap a chord for the dominant of the chord after it (V7/x), so the loop
+  // leans forward into its next chord. Major keys tonicize ii, iii, IV, V and
+  // vi; minor keys get the major V (raised leading tone) before i, and V7/iv.
+  addDominants(prog, rate) {
+    const r = this.rng;
+    if (!TONAL.includes(this.scaleName) || !r.chance(rate)) return prog;
+    const p = prog.slice();
+    const major = this.scaleName === 'major';
+    const targets = major ? [1, 2, 3, 4, 5] : [0, 3];
+    const spots = [];
+    for (let i = 1; i < p.length; i++) {
+      const t = p[(i + 1) % p.length];
+      if (typeof t === 'number' && targets.includes(t) && p[i] !== t) spots.push(i);
+    }
+    if (!spots.length) return p;
+    const i = r.pick(spots);
+    const t = p[(i + 1) % p.length];
+    // In a major key V7/I is the plain V7: nothing to add.
+    if (!(major && t === 0)) p[i] = { deg: (t + 4) % 7, q: 'dom' };
+    return p;
+  }
+
+  chord(spec, size = this.style.chordSize) {
+    return resolveChord(this.keyRoot, this.scale, spec, size);
   }
 
   isDiminished(deg) {
@@ -108,18 +142,36 @@ export class Composer {
     return m[2] - m[0] === 6;
   }
 
-  chordAt(barInSection) {
+  // The chord of a bar, the chord after it and whether it starts here. The
+  // last bar of a section may be swapped for a turnaround (see planCadence).
+  chordAt(b) {
+    const sec = this.section;
     const per = this.barsPerChord;
-    const i = Math.floor(barInSection / per) % this.progression.length;
-    return { deg: this.progression[i], next: this.progression[(i + 1) % this.progression.length], change: barInSection % per === 0 };
+    const last = sec ? sec.bars - 1 : -1;
+    const at = (x) => {
+      if (sec && sec.turn && x === last) return sec.turn.chord;
+      return this.progression[Math.floor(x / per) % this.progression.length];
+    };
+    const next = sec && b === last ? (sec.turn ? sec.turn.target : this.progression[0]) : at(b + 1);
+    const turnHere = !!(sec && sec.turn && b === last);
+    // Bars this chord lasts from here, cut short by a turnaround.
+    let span = per - (b % per);
+    if (sec && sec.turn && b < last && b + span > last) span = last - b;
+    return { deg: at(b), next, change: b % per === 0 || turnHere, span: turnHere ? 1 : span };
   }
 
   get barsPerChord() {
     return this.chordBars || this.style.barsPerChord;
   }
 
-  chordPcs(deg, size) {
-    return chordDegrees(deg, size).map((d) => (degreeToMidi(this.keyRoot, this.scale, d) % 12 + 12) % 12);
+  // Roll a key change without making it: { key, scaleName, kind } or null.
+  planKeyChange() {
+    const save = { key: this.key, scaleName: this.scaleName, messages: this.messages };
+    this.messages = [];
+    this.keyChange();
+    const plan = { key: this.key, scaleName: this.scaleName, kind: this.lastKeyMove };
+    Object.assign(this, save);
+    return plan.key === this.key && plan.scaleName === this.scaleName ? null : plan;
   }
 
   keyChange() {
@@ -128,6 +180,7 @@ export class Composer {
     const opts = this.style.keyMoves || [['up2', 3], ['up5', 2], ['relative', 3], ['mode', 2], ['down1', 1]];
     let kind = r.weighted(opts);
     if (this.chordBars && (kind === 'relative' || kind === 'mode')) kind = 'up2';
+    this.lastKeyMove = kind;
     const minorish = ['minor', 'dorian', 'phrygian', 'harmonicMinor'].includes(this.scaleName);
     if (kind === 'up2') this.key = (this.key + 2) % 12;
     else if (kind === 'up5') this.key = (this.key + 5) % 12;
@@ -145,6 +198,63 @@ export class Composer {
       if (others.length) this.scaleName = r.pick(others);
     }
     this.say(`KEY CHANGE ${old} → ${this.keyName}`);
+  }
+
+  applyKeyPlan(plan) {
+    const old = this.keyName;
+    const modeChange = plan.scaleName !== this.scaleName;
+    this.key = plan.key;
+    this.scaleName = plan.scaleName;
+    // A secondary dominant belongs to the old mode; in a new one it would point the wrong way.
+    if (modeChange) this.progression = this.progression.map((c) => (typeof c === 'number' ? c : c.deg));
+    this.say(`KEY CHANGE ${old} → ${this.keyName}`);
+  }
+
+  // At the start of the chord that holds a section's last bar, decide how the
+  // section hands over: whether the key changes at the boundary and which
+  // chord the last bar plays to lead into the next section.
+  //  - a key change is prepared by the new key's dominant (V7 of the new key),
+  //    so the ear hears where it is going; DEMO SCENE keeps its abrupt jumps;
+  //  - otherwise the last bar may turn around to the dominant of the next
+  //    section's first chord (V7-I, or V7/x into a loop that starts on x), or
+  //    in a mode to that mode's own cadence chord (bVII-I in mixolydian).
+  // A quoted tune keeps its own harmony unless the new key's dominant fits it.
+  planCadence(b) {
+    const r = this.rng;
+    const sec = this.section;
+    const p = this.surprise;
+    sec.planned = true;
+    sec.turn = null;
+    sec.keyTo = null;
+    const prep = this.style.cadences !== false;
+    const settled = this.totalBars + (sec.bars - b) >= 32;
+    if (!this.freeze && sec.next !== 'build' && settled && !this.themeLock && r.chance((0.02 + 0.14 * p) * (this.style.keyRate || 1))) {
+      sec.keyTo = this.planKeyChange();
+    }
+    if (!prep) return;
+    const quoting = this.motifName && sec.layers.has('lead');
+    const last = this.chordAt(sec.bars - 1).deg;
+    let chord = null;
+    let target = this.progression[0];
+    if (sec.keyTo && sec.keyTo.kind !== 'mode') {
+      chord = { pc: mod12(sec.keyTo.key + 7), q: 'dom' };
+      target = { pc: sec.keyTo.key, q: MINORISH.includes(sec.keyTo.scaleName) ? 'min' : 'maj' };
+    } else if (!quoting && r.chance(sec.next === 'drop' || sec.type === 'build' ? 0.9 : 0.35 + 0.4 * p)) {
+      if (TONAL.includes(this.scaleName) && !(typeof target === 'number' && this.isDiminished(target))) {
+        chord = { pc: mod12(this.chord(target, 3).rootPc + 7), q: 'dom' };
+      } else if (MODAL_CADENCE[this.scaleName] != null && target === 0) chord = MODAL_CADENCE[this.scaleName];
+    }
+    if (chord == null || sameChord(chord, last)) return;
+    if (quoting && this.leadClashes(sec.bars - 1, chord)) return;
+    sec.turn = { chord, target };
+  }
+
+  // Would the quoted melody in bar b grind against a chromatic chord tone?
+  leadClashes(b, spec) {
+    const shifts = chromaticShifts(this.keyRoot, this.scale, this.chord(spec, 3).pcs);
+    const half = b % 2;
+    const m = b % 4 < 2 ? this.motif : this.motifB;
+    return m.some((n) => n.step >= half * 16 && n.step < half * 16 + 16 && shifts.has(mod12(degreeToMidi(this.keyRoot, this.scale, n.deg))));
   }
 
   // ---- parts ---------------------------------------------------------------
@@ -259,35 +369,88 @@ export class Composer {
     this.scaleName = fam.find((x) => this.style.scales.includes(x)) || fam[0];
   }
 
-  // One chord per bar for a 4-bar phrase: the diatonic triad that holds the
-  // most of that bar's melody (strong beats count more), leaning to I, IV, V, vi.
+  // One chord per bar for a 4-bar phrase, chosen as a whole (Viterbi over the
+  // four bars) so the chords also make sense one after another:
+  //  - fit: chord tones in the melody count for the chord, strong beats more;
+  //  - function: tonic -> subdominant -> dominant -> tonic moves score, a
+  //    dominant falling back to a subdominant does not;
+  //  - cadence: a phrase that ends on the tonic gets V-I (authentic close),
+  //    one that ends elsewhere stops on V (half close), as tunes like Ode to
+  //    Joy do at the end of their first line;
+  //  - colour: in major a secondary dominant (V7/ii, V7/V, V7/vi) may lead into
+  //    its target, and minor tunes get a major V when the melody allows it.
   harmonize(notes) {
+    const major = this.scaleName === 'major';
+    const minor = ['minor', 'harmonicMinor'].includes(this.scaleName);
+    const cands = [0, 3, 4, 5, 1, 2].filter((c) => !this.isDiminished(c));
+    if (major) cands.push({ deg: 5, q: 'dom' }, { deg: 1, q: 'dom' }, { deg: 2, q: 'dom' });
+    if (minor && this.scaleName === 'minor') cands.push({ deg: 4, q: 'dom' });
     const prior = { 0: 0.6, 3: 0.45, 4: 0.45, 5: 0.35, 1: 0.2, 2: 0.1, 6: 0 };
-    const chords = [];
+    const midiOf = (d) => degreeToMidi(this.keyRoot, this.scale, d);
+    const fn = (c) => (typeof c !== 'number' ? 'D' : c === 4 || c === 6 ? 'D' : c === 3 || c === 1 ? 'S' : 'T');
+    const lastNote = notes[notes.length - 1];
+    const closesHome = lastNote && pc(lastNote.deg) === 0;
+    const bars = [];
     for (let bar = 0; bar < 4; bar++) {
       const a = bar * 16;
-      const w = new Map();
+      const w = new Map(); // pitch class -> weight
       for (const n of notes) {
         const from = Math.max(a, n.step);
         const to = Math.min(a + 16, n.step + n.len);
         if (to <= from) continue;
         const strong = n.step >= a && (n.step - a) % 8 === 0 ? 1.6 : 1;
-        w.set(pc(n.deg), (w.get(pc(n.deg)) || 0) + (to - from) * strong);
+        const k = mod12(midiOf(n.deg));
+        w.set(k, (w.get(k) || 0) + (to - from) * strong);
       }
-      let best = 0;
-      let bestScore = -Infinity;
-      for (const c of [0, 3, 4, 5, 1, 2]) {
-        if (this.isDiminished(c)) continue;
-        const tones = new Set([c, c + 2, c + 4].map(pc));
-        let score = prior[c] * 4;
-        for (const [d, x] of w) score += tones.has(d) ? x : -0.5 * x;
-        if ((bar === 0 || bar === 3) && c === 0) score += 2;
-        if (bar > 0 && c === chords[bar - 1]) score -= 1.5;
-        if (score > bestScore) [best, bestScore] = [c, score];
-      }
-      chords.push(best);
+      bars.push(w);
     }
-    return chords;
+    const fit = (c, bar) => {
+      const ch = this.chord(c, 3);
+      const shifts = chromaticShifts(this.keyRoot, this.scale, ch.pcs);
+      const tones = new Set(ch.pcs);
+      let score = typeof c === 'number' ? prior[c] * 4 : 0.6;
+      for (const [k, x] of bars[bar]) {
+        if (shifts.has(k)) return -Infinity; // the tune would grind against the chord
+        score += tones.has(k) ? x : -0.5 * x;
+      }
+      if (bar === 0 && c === 0) score += 2;
+      if (bar === 3) {
+        if (closesHome && c === 0) score += 2.5;
+        if (!closesHome && fn(c) === 'D') score += 2;
+      }
+      return score;
+    };
+    const move = (a, b) => {
+      if (sameChord(a, b)) return -0.6;
+      if (typeof a !== 'number') {
+        // A dominant must resolve: a fifth down to its target.
+        return this.chord(b, 3).rootPc === mod12(this.chord(a, 3).rootPc - 7) ? 2.5 : -3;
+      }
+      const f = fn(a) + fn(b);
+      if (typeof b !== 'number') return f[0] === 'D' ? -1 : 0.3;
+      return { TS: 0.6, TD: 0.4, TT: 0, SD: 1, ST: 0.3, SS: 0, DT: 1.5, DS: -1.5, DD: -0.5 }[f];
+    };
+    // Viterbi: best total score ending in each candidate, bar by bar.
+    let best = cands.map((c) => ({ score: fit(c, 0), path: [c] }));
+    for (let bar = 1; bar < 4; bar++) {
+      best = cands.map((c) => {
+        const f = fit(c, bar);
+        let top = { score: -Infinity, path: null };
+        for (const prev of best) {
+          const sc = prev.score + move(prev.path.at(-1), c) + f;
+          if (!top.path || sc > top.score) top = { score: sc, path: prev.path.concat([c]) };
+        }
+        return top;
+      });
+    }
+    // The phrase loops, so the last chord also has to lead back to the first.
+    let pick = null;
+    for (const x of best) {
+      if (!x.path) continue;
+      const sc = x.score + 0.5 * move(x.path[3], x.path[0]);
+      if (!pick || sc > pick.sc) pick = { sc, path: x.path };
+    }
+    return pick && pick.sc > -Infinity ? pick.path : [0, 3, 4, 0];
   }
 
   // A 4-bar phrase that sings: a one-bar rhythm that comes back, mostly
@@ -427,12 +590,15 @@ export class Composer {
   advanceSection(forced) {
     const prev = this.section;
     const type = forced || (prev ? prev.next : 'intro');
+    const finished = prev && this.barInSection >= prev.bars;
     const sec = this.makeSection(type);
     this.section = sec;
     this.barInSection = 0;
     if (!prev) return;
     const r = this.rng;
     const p = this.surprise;
+    // A key change planned (and prepared) at the end of the last section.
+    if (finished && prev.keyTo) this.applyKeyPlan(prev.keyTo);
     if (this.pendingStyle) {
       const id = this.pendingStyle;
       this.pendingStyle = null;
@@ -453,7 +619,6 @@ export class Composer {
       this.say('THEME VARIATION');
     }
     const settled = this.totalBars >= 32;
-    if (settled && r.chance((0.02 + 0.14 * p) * (this.style.keyRate || 1)) && !lock) this.keyChange();
     if (settled && r.chance(0.06 + 0.3 * p) && this.can('keys') && this.can('pad') && !this.chordBars) {
       this.newProgression();
       this.say('NEW CHORDS');
@@ -625,10 +790,13 @@ export class Composer {
       if (r.chance(0.12 * p) && this.can('hats')) this.drums.hats = this.mutateHats(this.drums.hats);
     }
 
+    if (!sec.planned && b === sec.bars - 1 - ((sec.bars - 1) % this.barsPerChord)) this.planCadence(b);
     const ch = this.chordAt(b);
     const size = s.chordSize;
-    const pcs = this.chordPcs(ch.deg, size);
-    const chordTones = new Set(chordDegrees(ch.deg, 3).map(pc));
+    const chord = this.chord(ch.deg, size);
+    const pcs = chord.pcs;
+    const chordTones = new Set(pcs.slice(0, 3));
+    const shifts = chromaticShifts(this.keyRoot, this.scale, pcs);
 
     // Drums
     const vel = (c) => (c === 'X' ? 1 : c === 'x' ? 0.82 : c === 'o' ? 0.35 : 0);
@@ -671,7 +839,7 @@ export class Composer {
     // Bass
     if (L.has('bass')) {
       const pat = energy < 0.35 ? 'x---------------' : this.bassPat;
-      const root = this.bassMidi(ch.deg);
+      const root = this.bassPc(chord.rootPc);
       for (let i = 0; i < 16; i++) {
         const c = pat[i];
         if (c === '.' || c === '-') continue;
@@ -679,10 +847,12 @@ export class Composer {
         while (i + len < 16 && pat[i + len] === '-') len++;
         let m = root;
         if (c === 'o') m = root + 12;
-        else if (c === 'f') m = this.bassMidi(ch.deg + 4, root);
+        else if (c === 'f') m = this.bassPc(chord.fifthPc, root);
         else if (c === 'a') {
-          const nr = this.bassMidi(ch.next, root);
-          m = this.bassMidi(ch.next + (nr > root ? -1 : 1), root);
+          // A step into the next chord's root: a scale step when that root is in
+          // the key, a half step when it is not (into a new key's dominant, say).
+          const nr = this.bassPc(this.chord(ch.next).rootPc, root);
+          m = typeof ch.next === 'number' ? this.bassMidi(ch.next + (nr > root ? -1 : 1), root) : nr + (nr > root ? -1 : 1);
         }
         events.push({ ch: 'bass', step: i, midi: m, len, vel: (i % 4 === 0 ? 0.95 : 0.78) + hum() });
       }
@@ -700,8 +870,8 @@ export class Composer {
         while (i + len < 16 && pat[i + len] === '-') len++;
         events.push({ ch: 'keys', step: i, midis: voicing, len, vel: (i === 0 ? 0.9 : 0.72) + hum() });
       }
-      if (ch.next !== ch.deg && (b + 1) % this.barsPerChord === 0 && r.chance(0.12 * p) && pat[14] !== 'x') {
-        const push = voiceLead(voicing, this.chordPcs(ch.next, size), s.keys.low, s.keys.high);
+      if (!sameChord(ch.next, ch.deg) && ch.span === 1 && b < sec.bars - 1 && r.chance(0.12 * p) && pat[14] !== 'x') {
+        const push = voiceLead(voicing, this.chord(ch.next, size).pcs, s.keys.low, s.keys.high);
         events.push({ ch: 'keys', step: 14, midis: push, len: 2, vel: 0.7, push: true });
       }
     }
@@ -710,7 +880,7 @@ export class Composer {
     if (L.has('pad') && ch.change) {
       const v = voiceLead(this.prevPad, pcs.slice(0, Math.min(4, pcs.length)), 50, 72);
       this.prevPad = v;
-      events.push({ ch: 'pad', step: 0, midis: v, len: 16 * this.barsPerChord, vel: 0.8 });
+      events.push({ ch: 'pad', step: 0, midis: v, len: 16 * ch.span, vel: 0.8 });
     }
 
     // Lead
@@ -730,15 +900,19 @@ export class Composer {
           const st = n.step - halfIdx * 16;
           if (st < 0 || st >= 16) continue;
           let deg = n.deg;
-          if (!this.motifName && st % 8 === 0 && !chordTones.has(pc(deg))) {
+          const tonePc = (d) => mod12(degreeToMidi(base, this.scale, d));
+          if (!this.motifName && st % 8 === 0 && !chordTones.has(tonePc(deg))) {
             for (const dd of [1, -1, 2, -2]) {
-              if (chordTones.has(pc(deg + dd))) {
+              if (chordTones.has(tonePc(deg + dd))) {
                 deg += dd;
                 break;
               }
             }
           }
-          const midi = degreeToMidi(base, this.scale, deg);
+          let midi = degreeToMidi(base, this.scale, deg);
+          // Over a chord from outside the scale a generated melody takes the
+          // chord's altered note (F -> F# over D7 in C, G -> G# over E7 in A minor).
+          if (!this.motifName && shifts.has(mod12(midi))) midi += shifts.get(mod12(midi));
           events.push({ ch: 'lead', step: st, midi, len: Math.min(n.len, 16 - st + 2), vel: (st % 4 === 0 ? 0.9 : 0.75) + hum(), glideFrom: this.lastLead });
           this.lastLead = midi;
         }
@@ -808,11 +982,25 @@ export class Composer {
         style: s.id,
         styleName: s.name,
         key: this.keyName,
-        chord: chordName(this.keyRoot, this.scale, ch.deg, size),
+        chord: chord.name,
         theme: this.motifName,
         messages,
       },
     };
+  }
+
+  // A bass note on pitch class pc: near `near`, or in the style's bass octave.
+  bassPc(k, near) {
+    let m = 36 + k;
+    if (near != null) {
+      while (m - near > 7) m -= 12;
+      while (near - m > 7) m += 12;
+    } else {
+      const lo = this.style.bass.octave === 1 ? 26 : 33;
+      while (m < lo) m += 12;
+      while (m >= lo + 12) m -= 12;
+    }
+    return m;
   }
 
   bassMidi(deg, near) {
