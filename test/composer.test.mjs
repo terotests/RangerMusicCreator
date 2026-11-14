@@ -123,3 +123,146 @@ test('generated melodies close on the tonic and stay within about an octave and 
     assert.equal(((c.motifB.at(-1).deg % 7) + 7) % 7, 0, `seed ${seed} ends on ${c.motifB.at(-1).deg}`);
   }
 });
+
+// ---- harmony ---------------------------------------------------------------
+
+import { NOTE_NAMES, SCALE_LABEL, chromaticShifts } from '../src/theory.js';
+
+function phrases(th) {
+  const out = [];
+  let cur = [];
+  let beat = 0;
+  for (const [deg, beats] of th.notes) {
+    if (beat >= 16) {
+      out.push(cur);
+      cur = [];
+      beat = 0;
+    }
+    if (deg !== null) cur.push({ step: Math.round(beat * 4), len: Math.round(beats * 4), deg });
+    beat += beats;
+  }
+  return out.concat([cur]);
+}
+
+test('theme harmony closes like the tune: half close on V, full close V-I or on I', () => {
+  const c = new Composer({ seed: 1, style: 'lofi' });
+  c.useMode('major');
+  const [one, two] = phrases(THEMES.find((t) => t.name === 'ODE TO JOY'));
+  const a = c.harmonize(one);
+  assert.equal(a[0], 0);
+  assert.ok([4, 6].includes(a[3]) || typeof a[3] === 'object', `line 1 ends on ${JSON.stringify(a[3])}`);
+  const b = c.harmonize(two);
+  assert.equal(b[3], 0, 'line 2 ends home');
+});
+
+test('a chromatic chord never fights the quoted melody', () => {
+  const c = new Composer({ seed: 2, style: 'lofi' });
+  for (const th of THEMES) {
+    c.useMode(th.mode);
+    for (const ph of phrases(th)) {
+      c.harmonize(ph).forEach((spec, bar) => {
+        if (typeof spec === 'number') return;
+        const shifts = chromaticShifts(c.keyRoot, c.scale, c.chord(spec, 3).pcs);
+        for (const n of ph) {
+          if (n.step + n.len <= bar * 16 || n.step >= bar * 16 + 16) continue;
+          const k = (((c.keyRoot + c.scale[((n.deg % 7) + 7) % 7]) % 12) + 12) % 12;
+          assert.ok(!shifts.has(k), `${th.name} bar ${bar + 1}`);
+        }
+      });
+    }
+  }
+});
+
+const pcOf = (name) => NOTE_NAMES.indexOf(name);
+const scaleOf = (key) => {
+  const [n, ...rest] = key.split(' ');
+  const id = Object.keys(SCALE_LABEL).find((k) => SCALE_LABEL[k] === rest.join(' '));
+  return { root: pcOf(n), scale: SCALES[id] };
+};
+
+test('key changes are prepared by the new key dominant (except DEMO SCENE)', () => {
+  let prepared = 0;
+  let changes = 0;
+  for (const style of STYLES.filter((s) => s.cadences !== false)) {
+    for (let seed = 1; seed <= 12; seed++) {
+      const bars = run(seed, style.id, 200);
+      for (let i = 1; i < bars.length; i++) {
+        if (!bars[i].info.messages.some((m) => m.startsWith('KEY CHANGE'))) continue;
+        changes++;
+        const { root } = scaleOf(bars[i].info.key);
+        const prev = bars[i - 1].info.chord;
+        const m = prev.match(/^[A-G]#?/)[0];
+        if (pcOf(m) === (root + 7) % 12 && !/m/.test(prev.slice(m.length).replace('maj', ''))) prepared++;
+      }
+    }
+  }
+  assert.ok(changes > 10, `only ${changes} key changes`);
+  assert.ok(prepared / changes > 0.6, `${prepared} of ${changes} prepared`);
+});
+
+test('a generated melody takes the altered note of a chromatic chord', () => {
+  let chromatic = 0;
+  for (let seed = 1; seed <= 20; seed++) {
+    const c = new Composer({ seed, style: 'lofi', surprise: 0.8 });
+    for (let i = 0; i < 160; i++) {
+      const { events, info } = c.nextBar();
+      if (info.theme) continue;
+      const { root, scale } = scaleOf(info.key);
+      const keys = events.find((e) => e.ch === 'keys' && e.midis && !e.push);
+      if (!keys) continue;
+      const shifts = chromaticShifts(root + 48, scale, [...new Set(keys.midis.map((m) => m % 12))]);
+      if (!shifts.size) continue;
+      chromatic++;
+      for (const e of events.filter((x) => x.ch === 'lead')) assert.ok(!shifts.has(e.midi % 12), `seed ${seed} bar ${i} ${info.chord}: lead ${e.midi}`);
+    }
+  }
+  assert.ok(chromatic > 20, `only ${chromatic} bars with a chromatic chord`);
+});
+
+test('voice leading keeps the chord: pitch classes in, the same pitch classes out', async () => {
+  const { voiceLead } = await import('../src/theory.js');
+  for (const [lo, hi] of [[50, 72], [55, 74], [57, 76], [48, 70]]) {
+    let prev = null;
+    for (const pcs of [[0, 4, 7], [5, 9, 0, 4], [7, 11, 2, 5], [9, 0, 4]]) {
+      const v = voiceLead(prev, pcs, lo, hi);
+      assert.deepEqual([...new Set(v.map((m) => m % 12))].sort((a, b) => a - b), [...pcs].sort((a, b) => a - b), `${lo}-${hi} ${pcs}`);
+      prev = v;
+    }
+  }
+});
+
+// ---- song form ---------------------------------------------------------------
+
+test('a song introduces its themes in order: intro, A, B, A', () => {
+  for (const style of STYLES) {
+    const bars = run(11, style.id, 120);
+    const order = [];
+    for (const { info } of bars) if (info.barInSection === 0) order.push(`${info.section}/${info.part}`);
+    assert.deepEqual(order.slice(0, 5), ['intro/intro', 'verse/A', 'bridge/B', 'build/A', 'drop/A'], style.id);
+  }
+});
+
+test('the intro is the main theme at half speed, and the main theme returns', () => {
+  for (let seed = 1; seed <= 10; seed++) {
+    const c = new Composer({ seed, style: 'lofi' });
+    const { A, intro, B } = c.song;
+    const slow = A.motif.map((n) => ({ ...n, step: n.step * 2, len: n.len * 2 }));
+    assert.deepEqual(intro.motif.concat(intro.motifB.map((n) => ({ ...n, step: n.step + 32 }))), slow);
+    assert.notDeepEqual(B.motif, A.motif);
+    const leads = { A: [], B: [] };
+    for (let i = 0; i < 90; i++) {
+      const { info } = c.nextBar();
+      if (info.part === 'A' && info.barInSection < 2) leads.A.push(JSON.stringify(c.motif));
+    }
+    assert.ok(new Set(leads.A).size === 1, `seed ${seed}: main theme changed`);
+  }
+});
+
+test('theme B ends on the dominant (or the mode cadence chord) so A can return', () => {
+  for (let seed = 1; seed <= 30; seed++) {
+    const c = new Composer({ seed, style: STYLES[seed % STYLES.length].id });
+    const last = c.song.B.progression[3];
+    const want = ['major', 'minor', 'harmonicMinor'].includes(c.scaleName) ? 4 : { mixolydian: 6, dorian: 3, lydian: 1, phrygian: 1 }[c.scaleName];
+    assert.equal(last, want, `seed ${seed} ${c.scaleName}`);
+  }
+});

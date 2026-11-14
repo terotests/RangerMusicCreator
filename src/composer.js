@@ -11,7 +11,7 @@
 
 import { Rng } from './rng.js';
 import { STYLES, STYLE_BY_ID, LAYERS } from './styles.js';
-import { SCALES, SCALE_LABEL, degreeToMidi, chordDegrees, chordName, voiceLead, noteName } from './theory.js';
+import { SCALES, SCALE_LABEL, degreeToMidi, chordDegrees, voiceLead, noteName, resolveChord, chromaticShifts, sameChord, mod12 } from './theory.js';
 import { THEMES } from './themes.js';
 
 const SECTIONS = {
@@ -32,7 +32,33 @@ const NEXT = {
   bridge: [['build', 1], ['drop', 1], ['verse', 0.5]],
 };
 
+// Song form. A song has three themes, made when it starts (and when the
+// style changes), so it has something to introduce, leave and come back to:
+//   A      the main theme: a 4-bar phrase over the style's chord loop that
+//          closes on the tonic;
+//   B      the contrast for bridges: other chords (from IV or vi), longer
+//          notes in a higher register, and a half close on V so that A can
+//          return;
+//   intro  A's first two bars at half speed over its first two chords: the
+//          main theme heard as a promise before it arrives. Breakdowns
+//          bring it back.
+// The first pass through a song follows FORM, which introduces the themes in
+// turn; after that the weighted walk (NEXT) takes over.
+const FORM = ['verse', 'bridge', 'build', 'drop', 'break', 'verse', 'bridge', 'build', 'drop'];
+const SLOT = { intro: 'intro', break: 'intro', verse: 'A', build: 'A', drop: 'A', bridge: 'B' };
+const SLOT_LABEL = { A: 'MAIN THEME', B: 'THEME B', intro: 'INTRO THEME' };
+// Chord loops for B: away from the tonic, ending on the dominant.
+const B_LOOPS = [[3, 4, 0, 4], [5, 3, 1, 4], [3, 0, 1, 4], [5, 2, 3, 4], [3, 5, 1, 4], [1, 2, 3, 4]];
+
 const pc = (d) => ((d % 7) + 7) % 7;
+
+// Scales where V is a major chord (or can be made one) and secondary
+// dominants sound at home. The modes keep their own colour instead.
+const TONAL = ['major', 'minor', 'harmonicMinor'];
+const MINORISH = ['minor', 'dorian', 'phrygian', 'harmonicMinor'];
+// The chord that leads home in each mode without leaving it:
+// bVII-I in mixolydian, IV-i in dorian, II-I in lydian, bII-i in phrygian.
+const MODAL_CADENCE = { mixolydian: 6, dorian: 3, lydian: 1, phrygian: 1 };
 
 export class Composer {
   constructor({ seed = 1, style = 'lofi', surprise = 0.5 } = {}) {
@@ -55,6 +81,9 @@ export class Composer {
     this.extraThemes = []; // themes imported from MIDI
     this.chordBars = null; // bars per chord when a quoted theme sets its own harmony
     this.leadBars = 0; // bars the current melody has been heard
+    this.form = FORM.slice(); // section order for the first pass
+    this.song = null; // { A, B, intro } themes, see FORM
+    this.slot = null; // which of them is playing
     this.applyStyle(style, true);
   }
 
@@ -71,9 +100,87 @@ export class Composer {
     this.newDrums(true);
     this.newBass();
     this.newComp();
-    this.newMotif();
+    this.buildSong();
     this.newArp();
     this.halftime = false;
+  }
+
+  // ---- song form -------------------------------------------------------------
+
+  buildSong() {
+    const r = this.rng;
+    // The main theme is mostly an original one; a public-domain tune now and then.
+    this.newMotif(r.chance(0.15 + 0.15 * this.surprise));
+    if (!this.motifName) {
+      const notes = this.motif.concat(this.motifB.map((n) => ({ ...n, step: n.step + 32 })));
+      this.progression = this.addDominants(this.pickLoop(notes, this.style.progressions, this.style.barsPerChord), (this.style.secondary ?? 0.2) * (0.5 + this.surprise));
+    }
+    const A = this.takeSlot();
+    this.song = { A, B: this.makeB(A), intro: this.makeIntro(A) };
+    this.useSlot('A');
+  }
+
+  takeSlot() {
+    return structuredClone({ motif: this.motif, motifB: this.motifB, motifName: this.motifName, progression: this.progression, chordBars: this.chordBars });
+  }
+
+  useSlot(name) {
+    if (!this.song || !this.song[name]) return;
+    Object.assign(this, structuredClone(this.song[name]));
+    this.slot = name;
+    this.leadBars = 0;
+  }
+
+  // Keep what is playing now as the current theme (after a reroll or a recall).
+  storeSlot(name = this.slot || 'A') {
+    if (!this.song) return;
+    this.song[name] = this.takeSlot();
+    if (name === 'A') this.song.intro = this.makeIntro(this.song.A);
+    this.slot = name;
+  }
+
+  // A reroll rewrites the theme that is playing: B makes a new B; in the
+  // intro or A it rewrites A (and with it the intro).
+  rewriteTheme(fn) {
+    if (!this.song || !this.slot) return fn();
+    if (this.slot === 'B') {
+      this.song.B = this.makeB(this.song.A);
+      return this.useSlot('B');
+    }
+    const was = this.slot;
+    if (was === 'intro') Object.assign(this, structuredClone(this.song.A));
+    fn();
+    this.storeSlot('A');
+    this.useSlot(was);
+  }
+
+  makeB(A) {
+    const notes = this.generateMotif({ contrast: true });
+    const close = TONAL.includes(this.scaleName) ? 4 : MODAL_CADENCE[this.scaleName] ?? 4;
+    const loops = B_LOOPS.map((l) => l.slice(0, 3).concat(close).map((d) => (this.isDiminished(d) ? (d + 1) % 7 : d)));
+    // B keeps its order (it must end on the dominant), so loops are not rotated.
+    let p = this.pickLoop(notes, loops, A.chordBars || this.style.barsPerChord, false);
+    p = this.addDominants(p, (this.style.secondary ?? 0.2) * 1.5, 2); // keep the closing V
+    return {
+      motif: notes.filter((n) => n.step < 32),
+      motifB: notes.filter((n) => n.step >= 32).map((n) => ({ ...n, step: n.step - 32 })),
+      motifName: null,
+      progression: p,
+      chordBars: A.chordBars ? 1 : null,
+    };
+  }
+
+  makeIntro(A) {
+    const per = A.chordBars || this.style.barsPerChord;
+    const at = (bar) => A.progression[Math.floor(bar / per) % A.progression.length];
+    const slow = A.motif.map((n) => ({ ...n, step: n.step * 2, len: n.len * 2 }));
+    return {
+      motif: slow.filter((n) => n.step < 32),
+      motifB: slow.filter((n) => n.step >= 32).map((n) => ({ ...n, step: n.step - 32 })),
+      motifName: A.motifName,
+      progression: [at(0), at(1)],
+      chordBars: 2,
+    };
   }
 
   get scale() {
@@ -99,8 +206,34 @@ export class Composer {
       p[i] = this.rng.pick(ok);
     }
     if (this.rng.chance(0.2)) p = p.slice(1).concat(p[0]);
-    this.progression = p;
+    this.progression = this.addDominants(p, (s.secondary ?? 0.2) * (0.5 + this.surprise));
     this.chordBars = null;
+  }
+
+  // Swap a chord for the dominant of the chord after it (V7/x), so the loop
+  // leans forward into its next chord. Major keys tonicize ii, iii, IV, V and
+  // vi; minor keys get the major V (raised leading tone) before i, and V7/iv.
+  addDominants(prog, rate, last = prog.length - 1) {
+    const r = this.rng;
+    if (!TONAL.includes(this.scaleName) || !r.chance(rate)) return prog;
+    const p = prog.slice();
+    const major = this.scaleName === 'major';
+    const targets = major ? [1, 2, 3, 4, 5] : [0, 3];
+    const spots = [];
+    for (let i = 1; i <= last; i++) {
+      const t = p[(i + 1) % p.length];
+      if (typeof t === 'number' && targets.includes(t) && p[i] !== t) spots.push(i);
+    }
+    if (!spots.length) return p;
+    const i = r.pick(spots);
+    const t = p[(i + 1) % p.length];
+    // In a major key V7/I is the plain V7: nothing to add.
+    if (!(major && t === 0)) p[i] = { deg: (t + 4) % 7, q: 'dom' };
+    return p;
+  }
+
+  chord(spec, size = this.style.chordSize) {
+    return resolveChord(this.keyRoot, this.scale, spec, size);
   }
 
   isDiminished(deg) {
@@ -108,18 +241,36 @@ export class Composer {
     return m[2] - m[0] === 6;
   }
 
-  chordAt(barInSection) {
+  // The chord of a bar, the chord after it and whether it starts here. The
+  // last bar of a section may be swapped for a turnaround (see planCadence).
+  chordAt(b) {
+    const sec = this.section;
     const per = this.barsPerChord;
-    const i = Math.floor(barInSection / per) % this.progression.length;
-    return { deg: this.progression[i], next: this.progression[(i + 1) % this.progression.length], change: barInSection % per === 0 };
+    const last = sec ? sec.bars - 1 : -1;
+    const at = (x) => {
+      if (sec && sec.turn && x === last) return sec.turn.chord;
+      return this.progression[Math.floor(x / per) % this.progression.length];
+    };
+    const next = sec && b === last ? (sec.turn ? sec.turn.target : this.progression[0]) : at(b + 1);
+    const turnHere = !!(sec && sec.turn && b === last);
+    // Bars this chord lasts from here, cut short by a turnaround.
+    let span = per - (b % per);
+    if (sec && sec.turn && b < last && b + span > last) span = last - b;
+    return { deg: at(b), next, change: b % per === 0 || turnHere, span: turnHere ? 1 : span };
   }
 
   get barsPerChord() {
     return this.chordBars || this.style.barsPerChord;
   }
 
-  chordPcs(deg, size) {
-    return chordDegrees(deg, size).map((d) => (degreeToMidi(this.keyRoot, this.scale, d) % 12 + 12) % 12);
+  // Roll a key change without making it: { key, scaleName, kind } or null.
+  planKeyChange() {
+    const save = { key: this.key, scaleName: this.scaleName, messages: this.messages };
+    this.messages = [];
+    this.keyChange();
+    const plan = { key: this.key, scaleName: this.scaleName, kind: this.lastKeyMove };
+    Object.assign(this, save);
+    return plan.key === this.key && plan.scaleName === this.scaleName ? null : plan;
   }
 
   keyChange() {
@@ -128,6 +279,7 @@ export class Composer {
     const opts = this.style.keyMoves || [['up2', 3], ['up5', 2], ['relative', 3], ['mode', 2], ['down1', 1]];
     let kind = r.weighted(opts);
     if (this.chordBars && (kind === 'relative' || kind === 'mode')) kind = 'up2';
+    this.lastKeyMove = kind;
     const minorish = ['minor', 'dorian', 'phrygian', 'harmonicMinor'].includes(this.scaleName);
     if (kind === 'up2') this.key = (this.key + 2) % 12;
     else if (kind === 'up5') this.key = (this.key + 5) % 12;
@@ -145,6 +297,68 @@ export class Composer {
       if (others.length) this.scaleName = r.pick(others);
     }
     this.say(`KEY CHANGE ${old} → ${this.keyName}`);
+  }
+
+  applyKeyPlan(plan) {
+    const old = this.keyName;
+    const modeChange = plan.scaleName !== this.scaleName;
+    this.key = plan.key;
+    this.scaleName = plan.scaleName;
+    // A secondary dominant belongs to the old mode; in a new one it would point the wrong way.
+    if (modeChange) {
+      const strip = (p) => p.map((c) => (typeof c === 'number' ? c : c.deg));
+      this.progression = strip(this.progression);
+      if (this.song) for (const t of Object.values(this.song)) t.progression = strip(t.progression);
+    }
+    this.say(`KEY CHANGE ${old} → ${this.keyName}`);
+  }
+
+  // At the start of the chord that holds a section's last bar, decide how the
+  // section hands over: whether the key changes at the boundary and which
+  // chord the last bar plays to lead into the next section.
+  //  - a key change is prepared by the new key's dominant (V7 of the new key),
+  //    so the ear hears where it is going; DEMO SCENE keeps its abrupt jumps;
+  //  - otherwise the last bar may turn around to the dominant of the next
+  //    section's first chord (V7-I, or V7/x into a loop that starts on x), or
+  //    in a mode to that mode's own cadence chord (bVII-I in mixolydian).
+  // A quoted tune keeps its own harmony unless the new key's dominant fits it.
+  planCadence(b) {
+    const r = this.rng;
+    const sec = this.section;
+    const p = this.surprise;
+    sec.planned = true;
+    sec.turn = null;
+    sec.keyTo = null;
+    const prep = this.style.cadences !== false;
+    const settled = this.totalBars + (sec.bars - b) >= 32;
+    if (!this.freeze && sec.next !== 'build' && settled && !this.themeLock && r.chance((0.02 + 0.14 * p) * (this.style.keyRate || 1))) {
+      sec.keyTo = this.planKeyChange();
+    }
+    if (!prep) return;
+    const quoting = this.motifName && sec.layers.has('lead');
+    const last = this.chordAt(sec.bars - 1).deg;
+    let chord = null;
+    const nextSlot = this.song && !this.themeLock && this.can('lead') && SLOT[sec.next];
+    let target = nextSlot ? this.song[nextSlot].progression[0] : this.progression[0];
+    if (sec.keyTo && sec.keyTo.kind !== 'mode') {
+      chord = { pc: mod12(sec.keyTo.key + 7), q: 'dom' };
+      target = { pc: sec.keyTo.key, q: MINORISH.includes(sec.keyTo.scaleName) ? 'min' : 'maj' };
+    } else if (!quoting && r.chance(sec.next === 'drop' || sec.type === 'build' ? 0.9 : 0.35 + 0.4 * p)) {
+      if (TONAL.includes(this.scaleName) && !(typeof target === 'number' && this.isDiminished(target))) {
+        chord = { pc: mod12(this.chord(target, 3).rootPc + 7), q: 'dom' };
+      } else if (MODAL_CADENCE[this.scaleName] != null && target === 0) chord = MODAL_CADENCE[this.scaleName];
+    }
+    if (chord == null || sameChord(chord, last)) return;
+    if (quoting && this.leadClashes(sec.bars - 1, chord)) return;
+    sec.turn = { chord, target };
+  }
+
+  // Would the quoted melody in bar b grind against a chromatic chord tone?
+  leadClashes(b, spec) {
+    const shifts = chromaticShifts(this.keyRoot, this.scale, this.chord(spec, 3).pcs);
+    const half = b % 2;
+    const m = b % 4 < 2 ? this.motif : this.motifB;
+    return m.some((n) => n.step >= half * 16 && n.step < half * 16 + 16 && shifts.has(mod12(degreeToMidi(this.keyRoot, this.scale, n.deg))));
   }
 
   // ---- parts ---------------------------------------------------------------
@@ -259,11 +473,20 @@ export class Composer {
     this.scaleName = fam.find((x) => this.style.scales.includes(x)) || fam[0];
   }
 
-  // One chord per bar for a 4-bar phrase: the diatonic triad that holds the
-  // most of that bar's melody (strong beats count more), leaning to I, IV, V, vi.
-  harmonize(notes) {
-    const prior = { 0: 0.6, 3: 0.45, 4: 0.45, 5: 0.35, 1: 0.2, 2: 0.1, 6: 0 };
-    const chords = [];
+  // One chord per bar for a 4-bar phrase, chosen as a whole (Viterbi over the
+  // four bars) so the chords also make sense one after another:
+  //  - fit: chord tones in the melody count for the chord, strong beats more;
+  //  - function: tonic -> subdominant -> dominant -> tonic moves score, a
+  //    dominant falling back to a subdominant does not;
+  //  - cadence: a phrase that ends on the tonic gets V-I (authentic close),
+  //    one that ends elsewhere stops on V (half close), as tunes like Ode to
+  //    Joy do at the end of their first line;
+  //  - colour: in major a secondary dominant (V7/ii, V7/V, V7/vi) may lead into
+  //    its target, and minor tunes get a major V when the melody allows it.
+  // Per bar of a 4-bar phrase: Map(pitch class -> weight), held length with
+  // strong beats counting more.
+  barWeights(notes) {
+    const bars = [];
     for (let bar = 0; bar < 4; bar++) {
       const a = bar * 16;
       const w = new Map();
@@ -272,31 +495,116 @@ export class Composer {
         const to = Math.min(a + 16, n.step + n.len);
         if (to <= from) continue;
         const strong = n.step >= a && (n.step - a) % 8 === 0 ? 1.6 : 1;
-        w.set(pc(n.deg), (w.get(pc(n.deg)) || 0) + (to - from) * strong);
+        const k = mod12(degreeToMidi(this.keyRoot, this.scale, n.deg));
+        w.set(k, (w.get(k) || 0) + (to - from) * strong);
       }
-      let best = 0;
-      let bestScore = -Infinity;
-      for (const c of [0, 3, 4, 5, 1, 2]) {
-        if (this.isDiminished(c)) continue;
-        const tones = new Set([c, c + 2, c + 4].map(pc));
-        let score = prior[c] * 4;
-        for (const [d, x] of w) score += tones.has(d) ? x : -0.5 * x;
-        if ((bar === 0 || bar === 3) && c === 0) score += 2;
-        if (bar > 0 && c === chords[bar - 1]) score -= 1.5;
-        if (score > bestScore) [best, bestScore] = [c, score];
-      }
-      chords.push(best);
+      bars.push(w);
     }
-    return chords;
+    return bars;
+  }
+
+  // How well a chord holds one bar of melody: chord tones count for it, other
+  // notes against it, and a semitone grind against an altered tone rules it out.
+  melodyFit(c, w) {
+    const ch = this.chord(c, 3);
+    const shifts = chromaticShifts(this.keyRoot, this.scale, ch.pcs);
+    const tones = new Set(ch.pcs);
+    let score = 0;
+    for (const [k, x] of w) {
+      if (shifts.has(k)) return -Infinity;
+      score += tones.has(k) ? x : -0.5 * x;
+    }
+    return score;
+  }
+
+  // Of a set of chord loops (and their rotations), one whose chords hold a
+  // generated melody well, so tune and chords are written for each other
+  // while the style keeps its own loops. A little chance keeps songs apart.
+  pickLoop(notes, loops, per, rotate = true) {
+    const r = this.rng;
+    const w = this.barWeights(notes);
+    let best = null;
+    for (const l of loops) {
+      for (let k = 0; k < (rotate ? l.length : 1); k++) {
+        const p = l.slice(k).concat(l.slice(0, k));
+        if (p.some((d) => this.isDiminished(d))) continue;
+        const span = Math.max(4, per * p.length);
+        let sc = 0;
+        for (let bar = 0; bar < span; bar++) sc += this.melodyFit(p[Math.floor(bar / per) % p.length], w[bar % 4]);
+        sc = sc / span + (p[0] === l[0] ? 1.5 : 0) + r.float(0, 3);
+        if (!best || sc > best.sc) best = { sc, p };
+      }
+    }
+    return best ? best.p : loops[0].slice();
+  }
+
+  harmonize(notes) {
+    const major = this.scaleName === 'major';
+    const minor = ['minor', 'harmonicMinor'].includes(this.scaleName);
+    const cands = [0, 3, 4, 5, 1, 2].filter((c) => !this.isDiminished(c));
+    if (major) cands.push({ deg: 5, q: 'dom' }, { deg: 1, q: 'dom' }, { deg: 2, q: 'dom' });
+    if (minor && this.scaleName === 'minor') cands.push({ deg: 4, q: 'dom' });
+    const prior = { 0: 0.6, 3: 0.45, 4: 0.45, 5: 0.35, 1: 0.2, 2: 0.1, 6: 0 };
+    const midiOf = (d) => degreeToMidi(this.keyRoot, this.scale, d);
+    const fn = (c) => (typeof c !== 'number' ? 'D' : c === 4 || c === 6 ? 'D' : c === 3 || c === 1 ? 'S' : 'T');
+    const lastNote = notes[notes.length - 1];
+    const closesHome = lastNote && pc(lastNote.deg) === 0;
+    const bars = this.barWeights(notes);
+    const fit = (c, bar) => {
+      let score = (typeof c === 'number' ? prior[c] * 4 : 0.6) + this.melodyFit(c, bars[bar]);
+      if (bar === 0 && c === 0) score += 2;
+      if (bar === 3) {
+        if (closesHome && c === 0) score += 2.5;
+        if (!closesHome && fn(c) === 'D') score += 2;
+      }
+      return score;
+    };
+    const move = (a, b) => {
+      if (sameChord(a, b)) return -0.6;
+      if (typeof a !== 'number') {
+        // A dominant must resolve: a fifth down to its target.
+        return this.chord(b, 3).rootPc === mod12(this.chord(a, 3).rootPc - 7) ? 2.5 : -3;
+      }
+      const f = fn(a) + fn(b);
+      if (typeof b !== 'number') return f[0] === 'D' ? -1 : 0.3;
+      return { TS: 0.6, TD: 0.4, TT: 0, SD: 1, ST: 0.3, SS: 0, DT: 1.5, DS: -1.5, DD: -0.5 }[f];
+    };
+    // Viterbi: best total score ending in each candidate, bar by bar.
+    let best = cands.map((c) => ({ score: fit(c, 0), path: [c] }));
+    for (let bar = 1; bar < 4; bar++) {
+      best = cands.map((c) => {
+        const f = fit(c, bar);
+        let top = { score: -Infinity, path: null };
+        for (const prev of best) {
+          const sc = prev.score + move(prev.path.at(-1), c) + f;
+          if (!top.path || sc > top.score) top = { score: sc, path: prev.path.concat([c]) };
+        }
+        return top;
+      });
+    }
+    // The phrase loops, so the last chord also has to lead back to the first.
+    let pick = null;
+    for (const x of best) {
+      if (!x.path) continue;
+      const sc = x.score + 0.5 * move(x.path[3], x.path[0]);
+      if (!pick || sc > pick.sc) pick = { sc, path: x.path };
+    }
+    return pick && pick.sc > -Infinity ? pick.path : [0, 3, 4, 0];
   }
 
   // A 4-bar phrase that sings: a one-bar rhythm that comes back, mostly
   // stepwise motion in a five-note scale for the calm styles, an arch shape,
   // a half close at bar 2 and a full close on the tonic at bar 4.
-  generateMotif() {
+  // contrast: the B theme's version: fewer, longer notes, starting high and
+  // ending on the 5th (a half close that wants A back).
+  generateMotif({ contrast = false } = {}) {
     const r = this.rng;
     const L = this.style.lead;
-    const cells = Object.entries(L.cells).filter(([c]) => c !== '....');
+    let cells = Object.entries(L.cells).filter(([c]) => c !== '....');
+    if (contrast) {
+      const few = cells.filter(([c]) => (c.match(/x/g) || []).length === 1);
+      if (few.length) cells = few;
+    }
     const minorish = ['minor', 'dorian', 'phrygian', 'harmonicMinor'].includes(this.scaleName);
     const calm = ['lofi', 'ambient', 'adventure', 'dub', 'house'].includes(this.style.id);
     const pool = calm ? (minorish ? [0, 2, 3, 4, 6] : [0, 1, 2, 4, 5]) : [0, 1, 2, 3, 4, 5, 6];
@@ -305,7 +613,7 @@ export class Composer {
     const bar = [];
     for (let c = 0; c < 4; c++) {
       let cell = r.weighted(cells);
-      if (c > 0 && r.next() > L.density + 0.35) cell = '....';
+      if (c > 0 && r.next() > (contrast ? 0.6 * L.density : L.density) + 0.35) cell = '....';
       bar.push(cell);
     }
     if (bar[0] === '....') bar[0] = 'x...';
@@ -315,7 +623,7 @@ export class Composer {
     const notes = [];
     const lo = -1;
     const hi = pool.length + 2;
-    let i = r.pick([0, 2, 0, pool.length - 1]);
+    let i = contrast ? r.pick([pool.indexOf(4), pool.length, pool.length]) : r.pick([0, 2, 0, pool.length - 1]);
     const phraseOf = [];
     for (let b = 0; b < 4; b++) {
       const rh = rhythms[b];
@@ -333,7 +641,7 @@ export class Composer {
         if (b % 2 === 1 && lastInBar) {
           // Half close on the 2nd or 5th, full close on the tonic: whichever is nearest.
           const second = pool.indexOf(1) >= 0 ? pool.indexOf(1) : pool.indexOf(2);
-          i = nearest(b === 3 ? 0 : r.pick([second, pool.indexOf(4)]));
+          i = nearest(b === 3 ? (contrast ? pool.indexOf(4) : 0) : r.pick([second, pool.indexOf(4)]));
         } else if (j > 0 || b > 0) {
           // Rise in bars 1 and 3, fall in bars 2 and 4; mostly steps.
           const up = b % 2 === 0 ? 1 : -1;
@@ -399,7 +707,8 @@ export class Composer {
     const choices = [];
     for (let b = def.bars[0]; b <= def.bars[1]; b += 4) choices.push(b);
     const bars = r.pick(choices);
-    const sec = { type, energy, bars, next: r.weighted(NEXT[type]), halftime: false };
+    const next = this.form && this.form.length ? this.form.shift() : r.weighted(NEXT[type]);
+    const sec = { type, energy, bars, next, halftime: false };
     sec.layers = this.pickLayers(energy, type);
     return sec;
   }
@@ -421,41 +730,69 @@ export class Composer {
       on.delete('kick');
       on.delete('snare');
     }
+    // The intro theme is the main theme's promise: it has to be heard.
+    // and the themes are melodies: verses, drops and bridges carry theirs.
+    if (SLOT[type] && type !== 'build' && this.song && th.lead < 1) on.add('lead');
     return on;
   }
 
   advanceSection(forced) {
     const prev = this.section;
     const type = forced || (prev ? prev.next : 'intro');
+    const finished = prev && this.barInSection >= prev.bars;
     const sec = this.makeSection(type);
     this.section = sec;
     this.barInSection = 0;
-    if (!prev) return;
+    if (!prev) {
+      if (this.can('lead')) this.useSlot(SLOT[type]);
+      return;
+    }
     const r = this.rng;
     const p = this.surprise;
+    // A key change planned (and prepared) at the end of the last section.
+    if (finished && prev.keyTo) this.applyKeyPlan(prev.keyTo);
     if (this.pendingStyle) {
       const id = this.pendingStyle;
       this.pendingStyle = null;
       this.applyStyle(id, false);
       this.say(`STYLE → ${this.style.name} · ${this.bpm} BPM`);
+      this.useSlot(SLOT[type]);
       sec.layers = this.pickLayers(sec.energy, type);
       return;
     }
-    if (type === 'build') return;
     const lock = this.themeLock;
-    // A melody stays a while (a quoted tune longer), so the song has something to come back to.
-    const melodyChance = (type === 'bridge' || type === 'drop' ? 0.15 + 0.35 * p : 0.05 * p) * (this.motifName ? 0.5 : 1);
-    if ((this.leadBars || 0) >= 16 && r.chance(melodyChance) && this.can('lead')) {
-      this.newMotif();
-      if (!this.motifName) this.say('NEW MELODY');
-    } else if (lock && r.chance(0.5)) {
+    const free = !lock && this.can('lead') && this.can('keys') && this.can('pad');
+    if (free && this.song) {
+      const slot = SLOT[type];
+      // Long into a song, the bridge may find a new B, and rarely the song a new main theme.
+      if (type === 'bridge' && this.totalBars >= 96 && r.chance(0.2 + 0.3 * p)) {
+        this.song.B = this.makeB(this.song.A);
+        this.slot = null;
+        this.say('NEW THEME B');
+      } else if (type === 'verse' && this.totalBars >= 192 && r.chance(0.1 + 0.2 * p)) {
+        this.buildSong();
+        this.slot = null;
+        this.say('NEW MAIN THEME');
+      }
+      if (slot !== this.slot) {
+        this.useSlot(slot);
+        this.say(this.motifName ? `${SLOT_LABEL[slot]}: ${this.motifName}` : SLOT_LABEL[slot]);
+      } else if (slot === 'A' && !this.motifName && type !== 'build' && r.chance(0.5)) {
+        // The theme again, answered differently: A'.
+        this.motifB = this.vary(this.song.A.motifB);
+        this.say('MAIN THEME VARIATION');
+      }
+    }
+    if (type === 'build') return;
+    if (lock && r.chance(0.5)) {
       this.motifB = this.vary(this.motif);
       this.say('THEME VARIATION');
     }
     const settled = this.totalBars >= 32;
-    if (settled && r.chance((0.02 + 0.14 * p) * (this.style.keyRate || 1)) && !lock) this.keyChange();
-    if (settled && r.chance(0.06 + 0.3 * p) && this.can('keys') && this.can('pad') && !this.chordBars) {
+    // With a song form the chords belong to the themes; they change with them.
+    if (!this.song && settled && r.chance(0.06 + 0.3 * p) && this.can('keys') && this.can('pad') && !this.chordBars) {
       this.newProgression();
+      this.storeSlot();
       this.say('NEW CHORDS');
     }
     if (settled && r.chance(0.05 + 0.25 * p) && ['kick', 'snare', 'hats'].some((d) => !this.hold.has(d))) {
@@ -512,6 +849,7 @@ export class Composer {
     this.chordBars = null;
     Object.assign(this, rest);
     this.themeLock = lock;
+    this.storeSlot('A');
     this.pendingStyle = null;
     this.queued = this.queued || 'verse';
     this.say(lock ? 'THEME RECALLED · VARIATIONS ONLY' : 'THEME RECALLED');
@@ -521,6 +859,7 @@ export class Composer {
   importTheme(theme) {
     this.extraThemes = (this.extraThemes || []).filter((t) => t.name !== theme.name).concat(theme);
     this.newMotif(theme);
+    this.storeSlot('A');
   }
 
   setStyle(id) {
@@ -550,13 +889,13 @@ export class Composer {
       this.say('NEW BASSLINE');
     } else if (layer === 'keys') {
       this.newComp();
-      this.newProgression();
+      this.rewriteTheme(() => this.newProgression());
       this.say('NEW CHORDS');
     } else if (layer === 'pad') {
-      this.newProgression();
+      this.rewriteTheme(() => this.newProgression());
       this.say('NEW CHORDS');
     } else if (layer === 'lead') {
-      this.newMotif(false);
+      this.rewriteTheme(() => this.newMotif(false));
       this.say('NEW MELODY');
     } else if (layer === 'arp') {
       this.newArp();
@@ -567,7 +906,7 @@ export class Composer {
   // ---- save points ---------------------------------------------------------------
 
   snapshot() {
-    const keys = ['seed', 'halftime', 'totalBars', 'barInSection', 'prevKeys', 'prevPad', 'lastLead', 'bpm', 'scaleName', 'key', 'progression', 'drums', 'bassPat', 'compPat', 'motif', 'motifB', 'motifName', 'arpMode', 'arpOct', 'chordBars', 'leadBars'];
+    const keys = ['seed', 'halftime', 'totalBars', 'barInSection', 'prevKeys', 'prevPad', 'lastLead', 'bpm', 'scaleName', 'key', 'progression', 'drums', 'bassPat', 'compPat', 'motif', 'motifB', 'motifName', 'arpMode', 'arpOct', 'chordBars', 'leadBars', 'song', 'slot', 'form'];
     const snap = { rng: this.rng.s, style: this.style.id, section: this.section && { ...this.section, layers: [...this.section.layers] } };
     for (const k of keys) snap[k] = structuredClone(this[k]);
     return snap;
@@ -625,10 +964,13 @@ export class Composer {
       if (r.chance(0.12 * p) && this.can('hats')) this.drums.hats = this.mutateHats(this.drums.hats);
     }
 
+    if (!sec.planned && b === sec.bars - 1 - ((sec.bars - 1) % this.barsPerChord)) this.planCadence(b);
     const ch = this.chordAt(b);
     const size = s.chordSize;
-    const pcs = this.chordPcs(ch.deg, size);
-    const chordTones = new Set(chordDegrees(ch.deg, 3).map(pc));
+    const chord = this.chord(ch.deg, size);
+    const pcs = chord.pcs;
+    const chordTones = new Set(pcs.slice(0, 3));
+    const shifts = chromaticShifts(this.keyRoot, this.scale, pcs);
 
     // Drums
     const vel = (c) => (c === 'X' ? 1 : c === 'x' ? 0.82 : c === 'o' ? 0.35 : 0);
@@ -671,7 +1013,7 @@ export class Composer {
     // Bass
     if (L.has('bass')) {
       const pat = energy < 0.35 ? 'x---------------' : this.bassPat;
-      const root = this.bassMidi(ch.deg);
+      const root = this.bassPc(chord.rootPc);
       for (let i = 0; i < 16; i++) {
         const c = pat[i];
         if (c === '.' || c === '-') continue;
@@ -679,10 +1021,12 @@ export class Composer {
         while (i + len < 16 && pat[i + len] === '-') len++;
         let m = root;
         if (c === 'o') m = root + 12;
-        else if (c === 'f') m = this.bassMidi(ch.deg + 4, root);
+        else if (c === 'f') m = this.bassPc(chord.fifthPc, root);
         else if (c === 'a') {
-          const nr = this.bassMidi(ch.next, root);
-          m = this.bassMidi(ch.next + (nr > root ? -1 : 1), root);
+          // A step into the next chord's root: a scale step when that root is in
+          // the key, a half step when it is not (into a new key's dominant, say).
+          const nr = this.bassPc(this.chord(ch.next).rootPc, root);
+          m = typeof ch.next === 'number' ? this.bassMidi(ch.next + (nr > root ? -1 : 1), root) : nr + (nr > root ? -1 : 1);
         }
         events.push({ ch: 'bass', step: i, midi: m, len, vel: (i % 4 === 0 ? 0.95 : 0.78) + hum() });
       }
@@ -700,8 +1044,8 @@ export class Composer {
         while (i + len < 16 && pat[i + len] === '-') len++;
         events.push({ ch: 'keys', step: i, midis: voicing, len, vel: (i === 0 ? 0.9 : 0.72) + hum() });
       }
-      if (ch.next !== ch.deg && (b + 1) % this.barsPerChord === 0 && r.chance(0.12 * p) && pat[14] !== 'x') {
-        const push = voiceLead(voicing, this.chordPcs(ch.next, size), s.keys.low, s.keys.high);
+      if (!sameChord(ch.next, ch.deg) && ch.span === 1 && b < sec.bars - 1 && r.chance(0.12 * p) && pat[14] !== 'x') {
+        const push = voiceLead(voicing, this.chord(ch.next, size).pcs, s.keys.low, s.keys.high);
         events.push({ ch: 'keys', step: 14, midis: push, len: 2, vel: 0.7, push: true });
       }
     }
@@ -710,7 +1054,7 @@ export class Composer {
     if (L.has('pad') && ch.change) {
       const v = voiceLead(this.prevPad, pcs.slice(0, Math.min(4, pcs.length)), 50, 72);
       this.prevPad = v;
-      events.push({ ch: 'pad', step: 0, midis: v, len: 16 * this.barsPerChord, vel: 0.8 });
+      events.push({ ch: 'pad', step: 0, midis: v, len: 16 * ch.span, vel: 0.8 });
     }
 
     // Lead
@@ -730,15 +1074,19 @@ export class Composer {
           const st = n.step - halfIdx * 16;
           if (st < 0 || st >= 16) continue;
           let deg = n.deg;
-          if (!this.motifName && st % 8 === 0 && !chordTones.has(pc(deg))) {
+          const tonePc = (d) => mod12(degreeToMidi(base, this.scale, d));
+          if (!this.motifName && st % 8 === 0 && !chordTones.has(tonePc(deg))) {
             for (const dd of [1, -1, 2, -2]) {
-              if (chordTones.has(pc(deg + dd))) {
+              if (chordTones.has(tonePc(deg + dd))) {
                 deg += dd;
                 break;
               }
             }
           }
-          const midi = degreeToMidi(base, this.scale, deg);
+          let midi = degreeToMidi(base, this.scale, deg);
+          // Over a chord from outside the scale a generated melody takes the
+          // chord's altered note (F -> F# over D7 in C, G -> G# over E7 in A minor).
+          if (!this.motifName && shifts.has(mod12(midi))) midi += shifts.get(mod12(midi));
           events.push({ ch: 'lead', step: st, midi, len: Math.min(n.len, 16 - st + 2), vel: (st % 4 === 0 ? 0.9 : 0.75) + hum(), glideFrom: this.lastLead });
           this.lastLead = midi;
         }
@@ -808,11 +1156,26 @@ export class Composer {
         style: s.id,
         styleName: s.name,
         key: this.keyName,
-        chord: chordName(this.keyRoot, this.scale, ch.deg, size),
+        chord: chord.name,
         theme: this.motifName,
+        part: this.slot,
         messages,
       },
     };
+  }
+
+  // A bass note on pitch class pc: near `near`, or in the style's bass octave.
+  bassPc(k, near) {
+    let m = 36 + k;
+    if (near != null) {
+      while (m - near > 7) m -= 12;
+      while (near - m > 7) m += 12;
+    } else {
+      const lo = this.style.bass.octave === 1 ? 26 : 33;
+      while (m < lo) m += 12;
+      while (m >= lo + 12) m -= 12;
+    }
+    return m;
   }
 
   bassMidi(deg, near) {

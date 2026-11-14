@@ -91,13 +91,36 @@ included yet.
   fills, echo throws and a silence before drops. The **SURPRISE** knob
   scales all of it. A song starts on the style's main groove, and the
   first sections stay put so there is something to come back to.
-- Melodies: often a phrase of a public-domain tune (`src/themes.js`,
+- Song form: each song has three themes, made when it starts. **A** is
+  the main theme, a 4-bar melody with a chord loop picked from the style's
+  loops to fit it. **B** contrasts it: other chords (from IV or vi), fewer
+  and longer notes in a higher register, and a close on V so that A can
+  return. The **intro theme** is A's first two bars at half speed, so the
+  song opens with a hint of its main theme; breakdowns bring it back. The
+  first pass runs intro → verse (A) → bridge (B) → build → drop (A) →
+  break (intro) → verse → bridge → build → drop, then the weighted walk
+  takes over. A repeated A gets a varied answer (A′), and long into a song
+  a bridge may bring a new B. The display shows which theme is playing.
+- Melodies: sometimes a phrase of a public-domain tune (`src/themes.js`,
   sources in [LICENSES.md](LICENSES.md)), played as written in its own mode
   with chords picked to fit each bar. Otherwise a generated 4-bar phrase:
   a one-bar rhythm that returns, mostly stepwise in a five-note scale for
   the calm styles, rising then falling, with a half close at bar 2 and an
   end on the tonic. A melody is heard for at least a section before it
   can change.
+- Harmony (`src/theory.js`, `harmonize` and `planCadence` in the composer):
+  - Tune phrases are harmonized as a whole, not bar by bar: chords must fit
+    the melody and follow each other (tonic → subdominant → dominant →
+    tonic). A phrase that ends on the tonic closes V–I, one that ends
+    elsewhere stops on V.
+  - Chord loops in major and minor sometimes get a secondary dominant
+    (V7/ii, V7/V, V7/vi…), and minor keys a major V with the raised leading
+    tone. A generated melody takes the chord's altered note; a quoted tune
+    only gets such a chord where its notes allow it.
+  - Section ends can turn around to the dominant of the next section's
+    first chord (in a mode, to its own cadence chord, e.g. ♭VII–I in
+    mixolydian). A key change is prepared by the new key's V7. DEMO SCENE
+    keeps its abrupt jumps (`cadences: false`).
 - `src/player.js`: look-ahead scheduler on the audio clock, swing and
   humanising, side-chain ducking from the kick.
 - `src/engine.js`: channel strips, ping-pong echo with filtered feedback,
