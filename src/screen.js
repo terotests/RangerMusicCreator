@@ -194,7 +194,8 @@ export class Screen {
     g.fillText(info.chord, x + w - 16, y + 46);
     g.font = '600 18px "Roboto Condensed", "Arial Narrow", Arial, sans-serif';
     g.fillStyle = '#b8c4d6';
-    g.fillText(`${info.key} · ${info.bpm} BPM`, x + w - 16, y + 70);
+    const part = { A: 'THEME A', B: 'THEME B', intro: 'INTRO THEME' }[info.part];
+    g.fillText(`${part ? part + ' · ' : ''}${info.key} · ${info.bpm} BPM`, x + w - 16, y + 70);
   }
 
   song(x, y, w, h) {

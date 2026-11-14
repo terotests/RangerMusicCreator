@@ -32,6 +32,24 @@ const NEXT = {
   bridge: [['build', 1], ['drop', 1], ['verse', 0.5]],
 };
 
+// Song form. A song has three themes, made when it starts (and when the
+// style changes), so it has something to introduce, leave and come back to:
+//   A      the main theme: a 4-bar phrase over the style's chord loop that
+//          closes on the tonic;
+//   B      the contrast for bridges: other chords (from IV or vi), longer
+//          notes in a higher register, and a half close on V so that A can
+//          return;
+//   intro  A's first two bars at half speed over its first two chords: the
+//          main theme heard as a promise before it arrives. Breakdowns
+//          bring it back.
+// The first pass through a song follows FORM, which introduces the themes in
+// turn; after that the weighted walk (NEXT) takes over.
+const FORM = ['verse', 'bridge', 'build', 'drop', 'break', 'verse', 'bridge', 'build', 'drop'];
+const SLOT = { intro: 'intro', break: 'intro', verse: 'A', build: 'A', drop: 'A', bridge: 'B' };
+const SLOT_LABEL = { A: 'MAIN THEME', B: 'THEME B', intro: 'INTRO THEME' };
+// Chord loops for B: away from the tonic, ending on the dominant.
+const B_LOOPS = [[3, 4, 0, 4], [5, 3, 1, 4], [3, 0, 1, 4], [5, 2, 3, 4], [3, 5, 1, 4], [1, 2, 3, 4]];
+
 const pc = (d) => ((d % 7) + 7) % 7;
 
 // Scales where V is a major chord (or can be made one) and secondary
@@ -63,6 +81,9 @@ export class Composer {
     this.extraThemes = []; // themes imported from MIDI
     this.chordBars = null; // bars per chord when a quoted theme sets its own harmony
     this.leadBars = 0; // bars the current melody has been heard
+    this.form = FORM.slice(); // section order for the first pass
+    this.song = null; // { A, B, intro } themes, see FORM
+    this.slot = null; // which of them is playing
     this.applyStyle(style, true);
   }
 
@@ -79,9 +100,87 @@ export class Composer {
     this.newDrums(true);
     this.newBass();
     this.newComp();
-    this.newMotif();
+    this.buildSong();
     this.newArp();
     this.halftime = false;
+  }
+
+  // ---- song form -------------------------------------------------------------
+
+  buildSong() {
+    const r = this.rng;
+    // The main theme is mostly an original one; a public-domain tune now and then.
+    this.newMotif(r.chance(0.15 + 0.15 * this.surprise));
+    if (!this.motifName) {
+      const notes = this.motif.concat(this.motifB.map((n) => ({ ...n, step: n.step + 32 })));
+      this.progression = this.addDominants(this.pickLoop(notes, this.style.progressions, this.style.barsPerChord), (this.style.secondary ?? 0.2) * (0.5 + this.surprise));
+    }
+    const A = this.takeSlot();
+    this.song = { A, B: this.makeB(A), intro: this.makeIntro(A) };
+    this.useSlot('A');
+  }
+
+  takeSlot() {
+    return structuredClone({ motif: this.motif, motifB: this.motifB, motifName: this.motifName, progression: this.progression, chordBars: this.chordBars });
+  }
+
+  useSlot(name) {
+    if (!this.song || !this.song[name]) return;
+    Object.assign(this, structuredClone(this.song[name]));
+    this.slot = name;
+    this.leadBars = 0;
+  }
+
+  // Keep what is playing now as the current theme (after a reroll or a recall).
+  storeSlot(name = this.slot || 'A') {
+    if (!this.song) return;
+    this.song[name] = this.takeSlot();
+    if (name === 'A') this.song.intro = this.makeIntro(this.song.A);
+    this.slot = name;
+  }
+
+  // A reroll rewrites the theme that is playing: B makes a new B; in the
+  // intro or A it rewrites A (and with it the intro).
+  rewriteTheme(fn) {
+    if (!this.song || !this.slot) return fn();
+    if (this.slot === 'B') {
+      this.song.B = this.makeB(this.song.A);
+      return this.useSlot('B');
+    }
+    const was = this.slot;
+    if (was === 'intro') Object.assign(this, structuredClone(this.song.A));
+    fn();
+    this.storeSlot('A');
+    this.useSlot(was);
+  }
+
+  makeB(A) {
+    const notes = this.generateMotif({ contrast: true });
+    const close = TONAL.includes(this.scaleName) ? 4 : MODAL_CADENCE[this.scaleName] ?? 4;
+    const loops = B_LOOPS.map((l) => l.slice(0, 3).concat(close).map((d) => (this.isDiminished(d) ? (d + 1) % 7 : d)));
+    // B keeps its order (it must end on the dominant), so loops are not rotated.
+    let p = this.pickLoop(notes, loops, A.chordBars || this.style.barsPerChord, false);
+    p = this.addDominants(p, (this.style.secondary ?? 0.2) * 1.5, 2); // keep the closing V
+    return {
+      motif: notes.filter((n) => n.step < 32),
+      motifB: notes.filter((n) => n.step >= 32).map((n) => ({ ...n, step: n.step - 32 })),
+      motifName: null,
+      progression: p,
+      chordBars: A.chordBars ? 1 : null,
+    };
+  }
+
+  makeIntro(A) {
+    const per = A.chordBars || this.style.barsPerChord;
+    const at = (bar) => A.progression[Math.floor(bar / per) % A.progression.length];
+    const slow = A.motif.map((n) => ({ ...n, step: n.step * 2, len: n.len * 2 }));
+    return {
+      motif: slow.filter((n) => n.step < 32),
+      motifB: slow.filter((n) => n.step >= 32).map((n) => ({ ...n, step: n.step - 32 })),
+      motifName: A.motifName,
+      progression: [at(0), at(1)],
+      chordBars: 2,
+    };
   }
 
   get scale() {
@@ -114,14 +213,14 @@ export class Composer {
   // Swap a chord for the dominant of the chord after it (V7/x), so the loop
   // leans forward into its next chord. Major keys tonicize ii, iii, IV, V and
   // vi; minor keys get the major V (raised leading tone) before i, and V7/iv.
-  addDominants(prog, rate) {
+  addDominants(prog, rate, last = prog.length - 1) {
     const r = this.rng;
     if (!TONAL.includes(this.scaleName) || !r.chance(rate)) return prog;
     const p = prog.slice();
     const major = this.scaleName === 'major';
     const targets = major ? [1, 2, 3, 4, 5] : [0, 3];
     const spots = [];
-    for (let i = 1; i < p.length; i++) {
+    for (let i = 1; i <= last; i++) {
       const t = p[(i + 1) % p.length];
       if (typeof t === 'number' && targets.includes(t) && p[i] !== t) spots.push(i);
     }
@@ -206,7 +305,11 @@ export class Composer {
     this.key = plan.key;
     this.scaleName = plan.scaleName;
     // A secondary dominant belongs to the old mode; in a new one it would point the wrong way.
-    if (modeChange) this.progression = this.progression.map((c) => (typeof c === 'number' ? c : c.deg));
+    if (modeChange) {
+      const strip = (p) => p.map((c) => (typeof c === 'number' ? c : c.deg));
+      this.progression = strip(this.progression);
+      if (this.song) for (const t of Object.values(this.song)) t.progression = strip(t.progression);
+    }
     this.say(`KEY CHANGE ${old} → ${this.keyName}`);
   }
 
@@ -235,7 +338,8 @@ export class Composer {
     const quoting = this.motifName && sec.layers.has('lead');
     const last = this.chordAt(sec.bars - 1).deg;
     let chord = null;
-    let target = this.progression[0];
+    const nextSlot = this.song && !this.themeLock && this.can('lead') && SLOT[sec.next];
+    let target = nextSlot ? this.song[nextSlot].progression[0] : this.progression[0];
     if (sec.keyTo && sec.keyTo.kind !== 'mode') {
       chord = { pc: mod12(sec.keyTo.key + 7), q: 'dom' };
       target = { pc: sec.keyTo.key, q: MINORISH.includes(sec.keyTo.scaleName) ? 'min' : 'maj' };
@@ -379,6 +483,61 @@ export class Composer {
   //    Joy do at the end of their first line;
   //  - colour: in major a secondary dominant (V7/ii, V7/V, V7/vi) may lead into
   //    its target, and minor tunes get a major V when the melody allows it.
+  // Per bar of a 4-bar phrase: Map(pitch class -> weight), held length with
+  // strong beats counting more.
+  barWeights(notes) {
+    const bars = [];
+    for (let bar = 0; bar < 4; bar++) {
+      const a = bar * 16;
+      const w = new Map();
+      for (const n of notes) {
+        const from = Math.max(a, n.step);
+        const to = Math.min(a + 16, n.step + n.len);
+        if (to <= from) continue;
+        const strong = n.step >= a && (n.step - a) % 8 === 0 ? 1.6 : 1;
+        const k = mod12(degreeToMidi(this.keyRoot, this.scale, n.deg));
+        w.set(k, (w.get(k) || 0) + (to - from) * strong);
+      }
+      bars.push(w);
+    }
+    return bars;
+  }
+
+  // How well a chord holds one bar of melody: chord tones count for it, other
+  // notes against it, and a semitone grind against an altered tone rules it out.
+  melodyFit(c, w) {
+    const ch = this.chord(c, 3);
+    const shifts = chromaticShifts(this.keyRoot, this.scale, ch.pcs);
+    const tones = new Set(ch.pcs);
+    let score = 0;
+    for (const [k, x] of w) {
+      if (shifts.has(k)) return -Infinity;
+      score += tones.has(k) ? x : -0.5 * x;
+    }
+    return score;
+  }
+
+  // Of a set of chord loops (and their rotations), one whose chords hold a
+  // generated melody well, so tune and chords are written for each other
+  // while the style keeps its own loops. A little chance keeps songs apart.
+  pickLoop(notes, loops, per, rotate = true) {
+    const r = this.rng;
+    const w = this.barWeights(notes);
+    let best = null;
+    for (const l of loops) {
+      for (let k = 0; k < (rotate ? l.length : 1); k++) {
+        const p = l.slice(k).concat(l.slice(0, k));
+        if (p.some((d) => this.isDiminished(d))) continue;
+        const span = Math.max(4, per * p.length);
+        let sc = 0;
+        for (let bar = 0; bar < span; bar++) sc += this.melodyFit(p[Math.floor(bar / per) % p.length], w[bar % 4]);
+        sc = sc / span + (p[0] === l[0] ? 1.5 : 0) + r.float(0, 3);
+        if (!best || sc > best.sc) best = { sc, p };
+      }
+    }
+    return best ? best.p : loops[0].slice();
+  }
+
   harmonize(notes) {
     const major = this.scaleName === 'major';
     const minor = ['minor', 'harmonicMinor'].includes(this.scaleName);
@@ -390,29 +549,9 @@ export class Composer {
     const fn = (c) => (typeof c !== 'number' ? 'D' : c === 4 || c === 6 ? 'D' : c === 3 || c === 1 ? 'S' : 'T');
     const lastNote = notes[notes.length - 1];
     const closesHome = lastNote && pc(lastNote.deg) === 0;
-    const bars = [];
-    for (let bar = 0; bar < 4; bar++) {
-      const a = bar * 16;
-      const w = new Map(); // pitch class -> weight
-      for (const n of notes) {
-        const from = Math.max(a, n.step);
-        const to = Math.min(a + 16, n.step + n.len);
-        if (to <= from) continue;
-        const strong = n.step >= a && (n.step - a) % 8 === 0 ? 1.6 : 1;
-        const k = mod12(midiOf(n.deg));
-        w.set(k, (w.get(k) || 0) + (to - from) * strong);
-      }
-      bars.push(w);
-    }
+    const bars = this.barWeights(notes);
     const fit = (c, bar) => {
-      const ch = this.chord(c, 3);
-      const shifts = chromaticShifts(this.keyRoot, this.scale, ch.pcs);
-      const tones = new Set(ch.pcs);
-      let score = typeof c === 'number' ? prior[c] * 4 : 0.6;
-      for (const [k, x] of bars[bar]) {
-        if (shifts.has(k)) return -Infinity; // the tune would grind against the chord
-        score += tones.has(k) ? x : -0.5 * x;
-      }
+      let score = (typeof c === 'number' ? prior[c] * 4 : 0.6) + this.melodyFit(c, bars[bar]);
       if (bar === 0 && c === 0) score += 2;
       if (bar === 3) {
         if (closesHome && c === 0) score += 2.5;
@@ -456,10 +595,16 @@ export class Composer {
   // A 4-bar phrase that sings: a one-bar rhythm that comes back, mostly
   // stepwise motion in a five-note scale for the calm styles, an arch shape,
   // a half close at bar 2 and a full close on the tonic at bar 4.
-  generateMotif() {
+  // contrast: the B theme's version: fewer, longer notes, starting high and
+  // ending on the 5th (a half close that wants A back).
+  generateMotif({ contrast = false } = {}) {
     const r = this.rng;
     const L = this.style.lead;
-    const cells = Object.entries(L.cells).filter(([c]) => c !== '....');
+    let cells = Object.entries(L.cells).filter(([c]) => c !== '....');
+    if (contrast) {
+      const few = cells.filter(([c]) => (c.match(/x/g) || []).length === 1);
+      if (few.length) cells = few;
+    }
     const minorish = ['minor', 'dorian', 'phrygian', 'harmonicMinor'].includes(this.scaleName);
     const calm = ['lofi', 'ambient', 'adventure', 'dub', 'house'].includes(this.style.id);
     const pool = calm ? (minorish ? [0, 2, 3, 4, 6] : [0, 1, 2, 4, 5]) : [0, 1, 2, 3, 4, 5, 6];
@@ -468,7 +613,7 @@ export class Composer {
     const bar = [];
     for (let c = 0; c < 4; c++) {
       let cell = r.weighted(cells);
-      if (c > 0 && r.next() > L.density + 0.35) cell = '....';
+      if (c > 0 && r.next() > (contrast ? 0.6 * L.density : L.density) + 0.35) cell = '....';
       bar.push(cell);
     }
     if (bar[0] === '....') bar[0] = 'x...';
@@ -478,7 +623,7 @@ export class Composer {
     const notes = [];
     const lo = -1;
     const hi = pool.length + 2;
-    let i = r.pick([0, 2, 0, pool.length - 1]);
+    let i = contrast ? r.pick([pool.indexOf(4), pool.length, pool.length]) : r.pick([0, 2, 0, pool.length - 1]);
     const phraseOf = [];
     for (let b = 0; b < 4; b++) {
       const rh = rhythms[b];
@@ -496,7 +641,7 @@ export class Composer {
         if (b % 2 === 1 && lastInBar) {
           // Half close on the 2nd or 5th, full close on the tonic: whichever is nearest.
           const second = pool.indexOf(1) >= 0 ? pool.indexOf(1) : pool.indexOf(2);
-          i = nearest(b === 3 ? 0 : r.pick([second, pool.indexOf(4)]));
+          i = nearest(b === 3 ? (contrast ? pool.indexOf(4) : 0) : r.pick([second, pool.indexOf(4)]));
         } else if (j > 0 || b > 0) {
           // Rise in bars 1 and 3, fall in bars 2 and 4; mostly steps.
           const up = b % 2 === 0 ? 1 : -1;
@@ -562,7 +707,8 @@ export class Composer {
     const choices = [];
     for (let b = def.bars[0]; b <= def.bars[1]; b += 4) choices.push(b);
     const bars = r.pick(choices);
-    const sec = { type, energy, bars, next: r.weighted(NEXT[type]), halftime: false };
+    const next = this.form && this.form.length ? this.form.shift() : r.weighted(NEXT[type]);
+    const sec = { type, energy, bars, next, halftime: false };
     sec.layers = this.pickLayers(energy, type);
     return sec;
   }
@@ -584,6 +730,9 @@ export class Composer {
       on.delete('kick');
       on.delete('snare');
     }
+    // The intro theme is the main theme's promise: it has to be heard.
+    // and the themes are melodies: verses, drops and bridges carry theirs.
+    if (SLOT[type] && type !== 'build' && this.song && th.lead < 1) on.add('lead');
     return on;
   }
 
@@ -594,7 +743,10 @@ export class Composer {
     const sec = this.makeSection(type);
     this.section = sec;
     this.barInSection = 0;
-    if (!prev) return;
+    if (!prev) {
+      if (this.can('lead')) this.useSlot(SLOT[type]);
+      return;
+    }
     const r = this.rng;
     const p = this.surprise;
     // A key change planned (and prepared) at the end of the last section.
@@ -604,23 +756,43 @@ export class Composer {
       this.pendingStyle = null;
       this.applyStyle(id, false);
       this.say(`STYLE → ${this.style.name} · ${this.bpm} BPM`);
+      this.useSlot(SLOT[type]);
       sec.layers = this.pickLayers(sec.energy, type);
       return;
     }
-    if (type === 'build') return;
     const lock = this.themeLock;
-    // A melody stays a while (a quoted tune longer), so the song has something to come back to.
-    const melodyChance = (type === 'bridge' || type === 'drop' ? 0.15 + 0.35 * p : 0.05 * p) * (this.motifName ? 0.5 : 1);
-    if ((this.leadBars || 0) >= 16 && r.chance(melodyChance) && this.can('lead')) {
-      this.newMotif();
-      if (!this.motifName) this.say('NEW MELODY');
-    } else if (lock && r.chance(0.5)) {
+    const free = !lock && this.can('lead') && this.can('keys') && this.can('pad');
+    if (free && this.song) {
+      const slot = SLOT[type];
+      // Long into a song, the bridge may find a new B, and rarely the song a new main theme.
+      if (type === 'bridge' && this.totalBars >= 96 && r.chance(0.2 + 0.3 * p)) {
+        this.song.B = this.makeB(this.song.A);
+        this.slot = null;
+        this.say('NEW THEME B');
+      } else if (type === 'verse' && this.totalBars >= 192 && r.chance(0.1 + 0.2 * p)) {
+        this.buildSong();
+        this.slot = null;
+        this.say('NEW MAIN THEME');
+      }
+      if (slot !== this.slot) {
+        this.useSlot(slot);
+        this.say(this.motifName ? `${SLOT_LABEL[slot]}: ${this.motifName}` : SLOT_LABEL[slot]);
+      } else if (slot === 'A' && !this.motifName && type !== 'build' && r.chance(0.5)) {
+        // The theme again, answered differently: A'.
+        this.motifB = this.vary(this.song.A.motifB);
+        this.say('MAIN THEME VARIATION');
+      }
+    }
+    if (type === 'build') return;
+    if (lock && r.chance(0.5)) {
       this.motifB = this.vary(this.motif);
       this.say('THEME VARIATION');
     }
     const settled = this.totalBars >= 32;
-    if (settled && r.chance(0.06 + 0.3 * p) && this.can('keys') && this.can('pad') && !this.chordBars) {
+    // With a song form the chords belong to the themes; they change with them.
+    if (!this.song && settled && r.chance(0.06 + 0.3 * p) && this.can('keys') && this.can('pad') && !this.chordBars) {
       this.newProgression();
+      this.storeSlot();
       this.say('NEW CHORDS');
     }
     if (settled && r.chance(0.05 + 0.25 * p) && ['kick', 'snare', 'hats'].some((d) => !this.hold.has(d))) {
@@ -677,6 +849,7 @@ export class Composer {
     this.chordBars = null;
     Object.assign(this, rest);
     this.themeLock = lock;
+    this.storeSlot('A');
     this.pendingStyle = null;
     this.queued = this.queued || 'verse';
     this.say(lock ? 'THEME RECALLED · VARIATIONS ONLY' : 'THEME RECALLED');
@@ -686,6 +859,7 @@ export class Composer {
   importTheme(theme) {
     this.extraThemes = (this.extraThemes || []).filter((t) => t.name !== theme.name).concat(theme);
     this.newMotif(theme);
+    this.storeSlot('A');
   }
 
   setStyle(id) {
@@ -715,13 +889,13 @@ export class Composer {
       this.say('NEW BASSLINE');
     } else if (layer === 'keys') {
       this.newComp();
-      this.newProgression();
+      this.rewriteTheme(() => this.newProgression());
       this.say('NEW CHORDS');
     } else if (layer === 'pad') {
-      this.newProgression();
+      this.rewriteTheme(() => this.newProgression());
       this.say('NEW CHORDS');
     } else if (layer === 'lead') {
-      this.newMotif(false);
+      this.rewriteTheme(() => this.newMotif(false));
       this.say('NEW MELODY');
     } else if (layer === 'arp') {
       this.newArp();
@@ -732,7 +906,7 @@ export class Composer {
   // ---- save points ---------------------------------------------------------------
 
   snapshot() {
-    const keys = ['seed', 'halftime', 'totalBars', 'barInSection', 'prevKeys', 'prevPad', 'lastLead', 'bpm', 'scaleName', 'key', 'progression', 'drums', 'bassPat', 'compPat', 'motif', 'motifB', 'motifName', 'arpMode', 'arpOct', 'chordBars', 'leadBars'];
+    const keys = ['seed', 'halftime', 'totalBars', 'barInSection', 'prevKeys', 'prevPad', 'lastLead', 'bpm', 'scaleName', 'key', 'progression', 'drums', 'bassPat', 'compPat', 'motif', 'motifB', 'motifName', 'arpMode', 'arpOct', 'chordBars', 'leadBars', 'song', 'slot', 'form'];
     const snap = { rng: this.rng.s, style: this.style.id, section: this.section && { ...this.section, layers: [...this.section.layers] } };
     for (const k of keys) snap[k] = structuredClone(this[k]);
     return snap;
@@ -984,6 +1158,7 @@ export class Composer {
         key: this.keyName,
         chord: chord.name,
         theme: this.motifName,
+        part: this.slot,
         messages,
       },
     };

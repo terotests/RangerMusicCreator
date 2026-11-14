@@ -208,7 +208,7 @@ test('a generated melody takes the altered note of a chromatic chord', () => {
       const { events, info } = c.nextBar();
       if (info.theme) continue;
       const { root, scale } = scaleOf(info.key);
-      const keys = events.find((e) => e.ch === 'keys' && !e.push);
+      const keys = events.find((e) => e.ch === 'keys' && e.midis && !e.push);
       if (!keys) continue;
       const shifts = chromaticShifts(root + 48, scale, [...new Set(keys.midis.map((m) => m % 12))]);
       if (!shifts.size) continue;
@@ -228,5 +228,41 @@ test('voice leading keeps the chord: pitch classes in, the same pitch classes ou
       assert.deepEqual([...new Set(v.map((m) => m % 12))].sort((a, b) => a - b), [...pcs].sort((a, b) => a - b), `${lo}-${hi} ${pcs}`);
       prev = v;
     }
+  }
+});
+
+// ---- song form ---------------------------------------------------------------
+
+test('a song introduces its themes in order: intro, A, B, A', () => {
+  for (const style of STYLES) {
+    const bars = run(11, style.id, 120);
+    const order = [];
+    for (const { info } of bars) if (info.barInSection === 0) order.push(`${info.section}/${info.part}`);
+    assert.deepEqual(order.slice(0, 5), ['intro/intro', 'verse/A', 'bridge/B', 'build/A', 'drop/A'], style.id);
+  }
+});
+
+test('the intro is the main theme at half speed, and the main theme returns', () => {
+  for (let seed = 1; seed <= 10; seed++) {
+    const c = new Composer({ seed, style: 'lofi' });
+    const { A, intro, B } = c.song;
+    const slow = A.motif.map((n) => ({ ...n, step: n.step * 2, len: n.len * 2 }));
+    assert.deepEqual(intro.motif.concat(intro.motifB.map((n) => ({ ...n, step: n.step + 32 }))), slow);
+    assert.notDeepEqual(B.motif, A.motif);
+    const leads = { A: [], B: [] };
+    for (let i = 0; i < 90; i++) {
+      const { info } = c.nextBar();
+      if (info.part === 'A' && info.barInSection < 2) leads.A.push(JSON.stringify(c.motif));
+    }
+    assert.ok(new Set(leads.A).size === 1, `seed ${seed}: main theme changed`);
+  }
+});
+
+test('theme B ends on the dominant (or the mode cadence chord) so A can return', () => {
+  for (let seed = 1; seed <= 30; seed++) {
+    const c = new Composer({ seed, style: STYLES[seed % STYLES.length].id });
+    const last = c.song.B.progression[3];
+    const want = ['major', 'minor', 'harmonicMinor'].includes(c.scaleName) ? 4 : { mixolydian: 6, dorian: 3, lydian: 1, phrygian: 1 }[c.scaleName];
+    assert.equal(last, want, `seed ${seed} ${c.scaleName}`);
   }
 });
