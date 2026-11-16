@@ -11,16 +11,44 @@ import { Recorder, download, encodeWav } from './recorder.js';
 import { Tape, fmtTime } from './tape.js';
 import { TapeView } from './tapeview.js';
 import { SaveDialog } from './savedialog.js';
+import { Library } from './library.js';
+import { store } from './store.js';
+import { Taste, TasteNet, features, MIN_LIKES } from './taste.js';
 import { VOICE_CHOICES, VOICE_LABEL } from './instruments.js';
 import { connectBridge } from './bridge.js';
 import { exportMidi, parseMidi, melodyTheme } from './midi.js';
 import { knob, fader, key } from './controls.js';
-import { randomSeed } from './rng.js';
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);
-let seed = Number(params.get('seed')) || randomSeed();
 const startStyle = STYLE_BY_ID[params.get('style')] ? params.get('style') : 'lofi';
+
+// TASTE: the preference net. Its weights are kept in localStorage so the very
+// first song can already lean toward what was liked; the likes themselves are
+// in IndexedDB and it retrains from them on load and after every like.
+const taste = new Taste({ makeMaterial: (s, style) => new Composer({ seed: s, style }).material() });
+const lsGet = (k) => {
+  try {
+    return localStorage.getItem(k);
+  } catch {
+    return null;
+  }
+};
+const lsSet = (k, v) => {
+  try {
+    localStorage.setItem(k, v);
+  } catch {}
+};
+try {
+  const saved = JSON.parse(lsGet('ranger.taste') || 'null');
+  if (saved) {
+    taste.net = saved.net ? TasteNet.fromJSON(saved.net) : null;
+    taste.likes = taste.net ? saved.likes || 0 : 0;
+  }
+} catch {}
+taste.enabled = lsGet('ranger.taste.on') !== '0';
+const firstPick = params.get('seed') ? null : taste.pick(startStyle);
+let seed = Number(params.get('seed')) || firstPick.seed;
 
 const engine = new Engine();
 let composer = new Composer({ seed, style: startStyle, surprise: 0.5 });
@@ -381,13 +409,124 @@ key(songRow, {
   label: 'SURPRISE<br>ME',
   color: 'white',
   help: 'SURPRISE ME: a random style and a new seed.',
-  onClick: () => newSong(STYLES[Math.floor(Math.random() * STYLES.length)].id),
+  onClick: () => newSong(null),
 });
+const likeKey = key(songRow, { label: '♥ LIKE', color: 'red', help: 'LIKE (key H): you like this beat. Its settings are saved in this browser right away, and TASTE learns to play more like it.', onClick: () => like() });
+const tasteKey = key(songRow, {
+  label: 'TASTE',
+  color: 'green',
+  help: `TASTE: new songs lean toward the ones you liked (a small neural net in your browser, learns from ${MIN_LIKES}+ likes). Off: pure chance.`,
+  onClick: () => {
+    taste.enabled = !taste.enabled;
+    lsSet('ranger.taste.on', taste.enabled ? '1' : '0');
+    tasteKey.on(taste.enabled);
+    toast(taste.enabled ? `TASTE on · ${tasteInfo()}` : 'TASTE off: songs are pure chance');
+  },
+});
+tasteKey.on(taste.enabled);
 
+// ---- likes and taste ------------------------------------------------------------
+
+let songStart = { at: 0, liked: false };
+
+function tasteInfo() {
+  if (!taste.likes) return 'no likes yet';
+  if (!taste.ready) return `${taste.likes} like${taste.likes > 1 ? 's' : ''}, learns from ${MIN_LIKES}`;
+  const top = taste.explain(2).map((f) => f.name.replace(/^style:/, '').replace(/^scale:/, '').replace(/_/g, ' '));
+  return `learned from ${taste.likes} likes · leans to ${top.join(', ')}`;
+}
+
+// The song as TASTE sees it: the current material with the main theme (A) in
+// place of the intro or bridge, so it compares like with like against fresh
+// candidate songs (which always start from A).
+function songMaterial() {
+  const m = composer.material();
+  const A = composer.song?.A;
+  return A ? { ...m, ...structuredClone(A) } : m;
+}
+
+async function retrain() {
+  try {
+    const [likes, skips] = await Promise.all([store.all('likes'), store.all('skips')]);
+    // Features are recomputed from the stored material, so old likes still count when features change.
+    taste.fit(likes.map((l) => features(l.song || l.material)), skips.slice(-200).map((k) => features(k.song || k.material)));
+    lsSet('ranger.taste', JSON.stringify({ likes: taste.likes, net: taste.net }));
+  } catch (err) {
+    console.warn('taste:', err);
+  }
+}
+
+async function like() {
+  const cur = player.current()?.info || screen.info;
+  if (!player.playing || !cur) {
+    toast('Play something first');
+    return null;
+  }
+  const song = songMaterial();
+  const rec = {
+    seed,
+    style: composer.style.id,
+    name: `${composer.style.name} · ${cur.section?.toUpperCase?.() || ''} · ${composer.keyName}`,
+    features: features(song),
+    song,
+    material: composer.material(),
+    snapshot: composer.snapshot(),
+    voice: { ...player.voice },
+    kit: { ...player.kit },
+    info: { key: composer.keyName, bpm: composer.bpm, section: cur.section },
+    tapeAt: tape.seconds,
+  };
+  try {
+    rec.id = await store.add('likes', rec);
+  } catch (err) {
+    toast(`Could not save the like: ${err.message}`);
+    return null;
+  }
+  songStart.liked = true;
+  likeKey.on(true);
+  screen.log(`♥ LIKED · ${composer.style.name}`);
+  await retrain();
+  toast(`♥ Saved · ${tasteInfo()}`);
+  return { id: rec.id, name: rec.name, likes: taste.likes, taste: tasteInfo() };
+}
+
+// Leaving a song within 40 s without liking it counts as a mild "not this".
+function noteSkip() {
+  if (!player.playing || songStart.liked || !songStart.at) return;
+  const heard = engine.now - songStart.at;
+  if (heard > 40 || heard < 3) return;
+  store.add('skips', { seed, style: composer.style.id, song: songMaterial(), heardSeconds: Math.round(heard) }).catch(() => {});
+}
+
+function playLike(rec) {
+  stopPreview();
+  player.setLoop(0);
+  loopKey.on(false);
+  seed = rec.seed;
+  composer = new Composer({ seed, style: rec.style, surprise: composer.surprise });
+  composer.restore(rec.snapshot);
+  player.composer = composer;
+  player.styleId = null;
+  player.voice = { ...rec.voice };
+  player.kit = { ...rec.kit };
+  screen.seed = seed;
+  songStart = { at: engine.now, liked: true };
+  likeKey.on(true);
+  syncInstruments();
+  screen.log(`♥ ${rec.name}`);
+  if (!player.playing) play();
+}
+
+// styleId: keep this style; null lets TASTE (or chance) pick the style too.
 function newSong(styleId) {
-  seed = randomSeed();
+  noteSkip();
+  const pick = taste.pick(styleId);
+  seed = pick.seed;
   const s = composer.surprise;
-  composer = new Composer({ seed, style: styleId, surprise: s });
+  composer = new Composer({ seed, style: pick.style, surprise: s });
+  songStart = { at: engine.now, liked: false };
+  likeKey.on(false);
+  if (pick.picked === 'taste') screen.log(`TASTE PICK · ${Math.round(pick.score * 100)}% YOUR KIND`);
   player.composer = composer;
   player.styleId = null;
   screen.seed = seed;
@@ -635,6 +774,7 @@ document.addEventListener('keydown', (e) => {
   else if (k === 'e') throwKey.el.click();
   else if (k === 'b') breakKey.el.click();
   else if (k === 'r') newSong(composer.style.id);
+  else if (k === 'h') like();
   else if (k === 'escape') $('#help').hidden = true;
 });
 $('#help').addEventListener('click', (e) => {
@@ -682,7 +822,7 @@ const tapeView = new TapeView($('#tape'), tape, (sel) => {
 const tapeKeys = $('#tape-keys');
 key(tapeKeys, { label: 'LISTEN', color: 'green', help: 'LISTEN: pause the live music and play the selected stretch (or the last 30 s) from the tape. PLAY returns to live.', onClick: () => (preview ? stopPreview() : listen()) });
 key(tapeKeys, { label: 'GO BACK', color: 'amber', help: 'GO BACK: the composer returns to the selected section and plays on from there, exactly as it went, until you change something.', onClick: () => goBack() });
-key(tapeKeys, { label: 'SAVE WAV', color: 'white', help: 'SAVE WAV: open the save window. Pick the stretch, listen to it, then save it as a WAV file.', onClick: () => saveDlg.open(selection) || toast('Nothing on the tape yet') });
+key(tapeKeys, { label: 'SAVE', color: 'white', help: 'SAVE: pick the part of the song and the themes, save as .wav, .json or both, to disk or to this browser.', onClick: () => saveDlg.open(selection) || toast('Nothing on the tape yet') });
 const markKey = key(tapeKeys, { label: '★ MARK', color: 'amber', help: 'MARK: bookmark this moment on the tape (key M).', onClick: () => bookmark() });
 
 function rangeOrLast(seconds) {
@@ -753,13 +893,65 @@ function tapeWav(range) {
 }
 
 function tapeName(range) {
-  return `ranger-${composer.style.id}-${seed}-${fmtTime(range.from / tape.rate).replace(':', 'm')}s.wav`;
+  return `ranger-${composer.style.id}-${seed}-${fmtTime(range.from / tape.rate).replace(':', 'm')}s`;
 }
 
-function saveTape(range = selection && selection.to > selection.from ? selection : { from: tape.firstFrame, to: tape.total }, name = tapeName(range)) {
+// The themes the save window offers: the song's A / B / intro and the filled memory slots.
+function exportThemes() {
+  const song = composer.song || {};
+  const desc = (t) => (t ? t.motifName || `${(t.motif?.length || 0) + (t.motifB?.length || 0)} notes` : '');
+  const list = [
+    { id: 'A', label: 'A · main theme', detail: desc(song.A), on: true, disabled: !song.A },
+    { id: 'B', label: 'B · bridge', detail: desc(song.B), on: true, disabled: !song.B },
+    { id: 'intro', label: 'Intro', detail: desc(song.intro), on: true, disabled: !song.intro },
+  ];
+  memory.forEach((m, i) => m && list.push({ id: `M${i + 1}`, label: `M${i + 1} · ${m.name}`, detail: m.detail, on: true }));
+  return list;
+}
+
+// A set file (LOAD SET opens it) for one part of the tape: it starts from the
+// first section in the part, keeps only the chosen themes, and lists every bar's notes.
+function exportJson(range, themes) {
+  const pick = new Set(themes);
+  const strip = (song) => song && Object.fromEntries(Object.entries(song).filter(([k]) => pick.has(k)));
+  const set = saveSet();
+  set.composer.song = strip(set.composer.song);
+  set.memory = set.memory.map((m, i) => (pick.has(`M${i + 1}`) ? m : null));
+  const r = tape.rate;
+  const sections = tape.markers
+    .filter((m) => m.kind === 'section' && m.snapshot)
+    .filter((m, i, all) => m.frame < range.to && (all[i + 1]?.frame ?? tape.total) > range.from + r * 0.3)
+    .map((m) => ({ section: m.section, style: m.style, key: m.key, bpm: m.bpm, at: +(m.frame / r).toFixed(2), snapshot: { ...m.snapshot, song: strip(m.snapshot.song) } }));
+  set.export = {
+    from: +(range.from / r).toFixed(2),
+    to: +(range.to / r).toFixed(2),
+    themes: [...pick],
+    sections,
+    bars: played.filter((b) => b.frame >= range.from - r * 0.2 && b.frame < range.to).map((b) => ({ at: +(b.frame / r).toFixed(2), info: b.info, events: b.events })),
+  };
+  return set;
+}
+
+async function saveExport({ range, name, format, dest, themes }) {
   if (!tape.total) return toast('Nothing on the tape yet');
-  download(tapeWav(range), name);
-  toast(`Saved ${name}`);
+  const files = [];
+  if (format !== 'json') files.push({ kind: 'wav', blob: tapeWav(range) });
+  if (format !== 'wav') files.push({ kind: 'json', blob: new Blob([JSON.stringify(exportJson(range, themes))], { type: 'application/json' }) });
+  const meta = { length: (range.to - range.from) / tape.rate, style: composer.style.id, seed, themes };
+  try {
+    for (const f of files) {
+      if (dest === 'browser') await store.add('library', { name, kind: f.kind, blob: f.blob, size: f.blob.size, meta });
+      else {
+        download(f.blob, `${name}.${f.kind}`);
+        await new Promise((res) => setTimeout(res, 300)); // two downloads in a row need a gap in some browsers
+      }
+    }
+  } catch (err) {
+    return toast(`Could not save: ${err.message}`);
+  }
+  const what = files.map((f) => '.' + f.kind).join(' + ');
+  toast(dest === 'browser' ? `Saved ${name} ${what} in the browser LIBRARY` : `Saved ${name} ${what}`);
+  return { name, files: files.map((f) => `${name}.${f.kind}`), dest };
 }
 
 function bookmark() {
@@ -791,8 +983,40 @@ const saveDlg = new SaveDialog($('#save-dlg'), {
   stop: stopPreview,
   preview: () => preview,
   now: () => engine.now,
-  save: (r, name) => saveTape(r, name),
+  save: (o) => saveExport(o),
   name: tapeName,
+  themes: exportThemes,
+});
+
+const library = new Library($('#lib-dlg'), {
+  playLike,
+  playWav: (blob) => blob.arrayBuffer().then((b) => engine.ctx.decodeAudioData(b)).then((buf) => {
+    if (player.playing) pause();
+    stopPreview();
+    const src = engine.ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(engine.ctx.destination);
+    src.connect(engine.analyser);
+    engine.ctx.resume();
+    src.start();
+    preview = { src, from: 0, to: 0, start: engine.now, loop: false };
+    src.onended = () => preview && preview.src === src && stopPreview();
+  }),
+  loadJson: (obj, name) => {
+    loadSet(obj);
+    toast(`Loaded ${name}`);
+    if (!player.playing) play();
+  },
+  download,
+  toast,
+  tasteInfo,
+  resetTaste: () => {
+    taste.net = null;
+    taste.likes = 0;
+    lsSet('ranger.taste', 'null');
+    retrain();
+  },
+  changed: () => retrain(),
 });
 
 const played = []; // every bar as it was heard, with its place on the tape (for MIDI export)
@@ -885,6 +1109,7 @@ const filesEl = $('#files');
 key(filesEl, { label: 'SAVE<br>SET', color: 'white', help: 'SAVE SET: save the whole session (song state, mix, instruments, theme memory) as a small file you can load later.', onClick: () => downloadText(JSON.stringify(saveSet()), `ranger-set-${composer.style.id}-${seed}.json`) });
 key(filesEl, { label: 'LOAD<br>SET', color: 'white', help: 'LOAD SET: open a saved set and carry on from where it was.', onClick: () => $('#load-set').click() });
 key(filesEl, { label: 'MIDI<br>OUT', color: 'white', help: 'MIDI OUT: the selected stretch of the tape (or all of it) as a MIDI file, one track per part, for any DAW.', onClick: () => downloadMidi() });
+key(filesEl, { label: 'LIBRARY', color: 'white', help: 'LIBRARY: liked songs and what you saved in this browser. Play, load, download or delete them.', onClick: () => library.open() });
 key(filesEl, { label: 'MIDI<br>IN', color: 'white', help: 'MIDI IN: open a MIDI file; its melody becomes the theme of the song (mapped to the current key and style).', onClick: () => $('#load-midi').click() });
 
 $('#load-set').addEventListener('change', async (e) => {
@@ -936,7 +1161,9 @@ function saveSet() {
 function loadSet(set) {
   if (set.app !== 'ranger-music-creator') throw new Error('not a Ranger set file');
   seed = set.seed;
-  const c = set.composer;
+  // A saved part starts where that part started.
+  const start = set.export?.sections?.[0]?.snapshot;
+  const c = start ? { ...set.composer, ...start } : set.composer;
   composer = new Composer({ seed, style: set.style, surprise: c.surprise ?? 0.5 });
   composer.restore(c);
   composer.hold = new Set(c.hold || []);
@@ -1210,6 +1437,12 @@ const api = {
   },
   saveSet() {
     return saveSet();
+  },
+  like() {
+    return like();
+  },
+  taste() {
+    return { enabled: taste.enabled, ready: taste.ready, likes: taste.likes, summary: tasteInfo(), leans_to: taste.explain(5) };
   },
   loadSet({ set }) {
     return loadSet(typeof set === 'string' ? JSON.parse(set) : set);

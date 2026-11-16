@@ -277,6 +277,39 @@ h4 { font-size: 13px; }
 .save-name { min-width: 220px; flex: 1 1 260px; background: #0b0c0e; color: #e8ebef; border: 1px solid #44464d; border-radius: 4px; padding: 5px 8px; font: 13px ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
 .save-card .save-play { min-width: 82px; background: #1d3a26; border-color: #3ee06e; }
 .save-card .save-go { background: #1d3150; border-color: #4aa8ff; }
+.save-step { margin: 14px 0 6px; font: 700 12px var(--font); color: #9aa1ab; letter-spacing: 0.06em; display: flex; align-items: center; gap: 6px; }
+.save-step b { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: #4aa8ff; color: #06121f; font-size: 11px; }
+.save-step span { font-weight: 500; letter-spacing: 0; color: #6f7680; }
+.save-card h2 + .save-step { margin-top: 6px; }
+.save-secs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.save-card .save-secs button { border-left: 4px solid var(--c); display: inline-flex; flex-direction: column; align-items: flex-start; line-height: 1.1; padding: 4px 8px; }
+.save-secs small { font: 500 10px ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: #9aa1ab; }
+.save-card .save-secs button.on { background: color-mix(in srgb, var(--c) 30%, #2b2d33); border-color: var(--c); }
+.save-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 18px; margin-top: 4px; }
+@media (max-width: 720px) { .save-grid { grid-template-columns: 1fr; gap: 4px; } }
+.save-themes { display: flex; flex-direction: column; gap: 3px; }
+.save-themes.dim { opacity: 0.45; }
+.save-themes small { color: #8a919b; }
+.save-seg { display: inline-flex; }
+.save-card .save-seg button { border-radius: 0; margin-left: -1px; min-width: 64px; }
+.save-card .save-seg button:first-child { border-radius: 4px 0 0 4px; margin-left: 0; }
+.save-card .save-seg button:last-child { border-radius: 0 4px 4px 0; }
+.save-card .save-seg button.on { background: #1d3150; border-color: #4aa8ff; color: #fff; position: relative; }
+.save-note { margin: 6px 0 0; color: #8a919b; font-size: 12px; }
+.save-foot { border-top: 1px solid #33353b; padding-top: 12px; margin-top: 14px; }
+.save-card .save-go { min-width: 90px; }
+#lib-dlg { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 10; padding: 16px; }
+#lib-dlg[hidden] { display: none; }
+.lib-tabs { display: flex; gap: 6px; margin: 8px 0 10px; }
+.save-card .lib-tabs button.on { background: #1d3150; border-color: #4aa8ff; }
+.lib-list { display: flex; flex-direction: column; gap: 4px; min-height: 120px; }
+.lib-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: #17181b; border: 1px solid #2c2d31; border-radius: 6px; }
+.lib-row .lib-main { flex: 1; min-width: 0; }
+.lib-row .lib-main b { display: block; font: 700 13px var(--font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-row .lib-main small { color: #8a919b; font-size: 12px; }
+.lib-empty { color: #8a919b; padding: 20px 4px; }
+.lib-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; border-top: 1px solid #33353b; padding-top: 10px; font-size: 12px; color: #9aa1ab; }
+.lib-foot .save-grow { flex: 1; }
 .help-card { position: relative; max-width: 640px; background: #1f2024; border: 1px solid #3a3b40; border-radius: 10px; padding: 22px 26px; color: #dfe2e6; font: 15px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif; max-height: 90vh; overflow: auto; }
 .help-card h2 { margin: 0 0 8px; font: 800 26px var(--font); }
 .help-card li { margin: 4px 0; }

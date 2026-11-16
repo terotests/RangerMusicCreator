@@ -1,14 +1,30 @@
 // SPDX-License-Identifier: MIT
-// The SAVE WAV window: shows the stretch that will be saved, lets you move its
-// start and end (snapped to bars), play it back, and then save it.
+// The SAVE window: pick the part of the song (sections or a dragged stretch,
+// snapped to bars), the themes, the format (.wav / .json / both) and where it
+// goes (disk or the browser library), listen to it, then save.
 import { fmtTime } from './tape.js';
 import { SECTION_COLOR } from './tapeview.js';
 
 const OVER = 30; // height of the whole-tape strip at the top of the canvas
 
+// The last format and destination are remembered (per browser).
+const pref = (k, d) => {
+  try {
+    return localStorage.getItem(`ranger.save.${k}`) || d;
+  } catch {
+    return d;
+  }
+};
+const setPref = (k, v) => {
+  try {
+    localStorage.setItem(`ranger.save.${k}`, v);
+  } catch {}
+};
+
 export class SaveDialog {
   // opts: { tape, bars() -> [frame], listen(range, loop), stop(), preview() -> {from,to,start,loop}|null,
-  //         now() -> audio clock seconds, save(range, name), name(range) }
+  //         now() -> audio clock seconds, name(range), themes() -> [{ id, label, detail, on }],
+  //         save({ range, name, format: 'wav'|'json'|'both', dest: 'disk'|'browser', themes: [id] }) }
   constructor(root, opts) {
     this.root = root;
     this.o = opts;
@@ -16,14 +32,18 @@ export class SaveDialog {
     this.range = null;
     this.snap = true;
     this.loop = true;
+    this.format = pref('format', 'wav');
+    this.dest = pref('dest', 'disk');
     root.innerHTML = `
-      <div class="save-card" role="dialog" aria-label="Save a stretch of the tape">
+      <div class="save-card" role="dialog" aria-label="Save a part of the song">
         <button class="help-close" data-act="cancel" aria-label="Close">×</button>
-        <h2>SAVE WAV</h2>
-        <p class="save-hint">Drag the edges to set the start and end, drag the middle to move it, or drag across the waveform to pick a new stretch. The strip at the top is the whole tape: click it to jump there.</p>
+        <h2>SAVE</h2>
+        <h5 class="save-step"><b>1</b> WHICH PART</h5>
         <div class="save-presets">
-          <button data-act="sel">SELECTION</button><button data-act="sec">SECTION</button><button data-act="last30">LAST 30 S</button><button data-act="last120">LAST 2 MIN</button><button data-act="all">WHOLE TAPE</button>
+          <button data-act="sel">SELECTION</button><button data-act="last30">LAST 30 S</button><button data-act="last120">LAST 2 MIN</button><button data-act="all">WHOLE TAPE</button>
         </div>
+        <div class="save-secs" data-out="secs" aria-label="Sections on the tape"></div>
+        <p class="save-hint">Click a section to take it, shift-click another to take everything in between. Or drag the edges on the waveform; the strip at the top is the whole tape.</p>
         <canvas class="save-wave" width="1800" height="300"></canvas>
         <div class="save-row">
           <span class="save-edge">START <button data-act="s-">◀</button><b data-out="from"></b><button data-act="s+">▶</button></span>
@@ -34,12 +54,51 @@ export class SaveDialog {
           <button class="save-play" data-act="play">▶ PLAY</button>
           <label><input type="checkbox" data-opt="loop" checked> loop</label>
           <label><input type="checkbox" data-opt="snap" checked> snap to bars</label>
-          <span class="save-grow"></span>
+        </div>
+        <div class="save-grid">
+          <div>
+            <h5 class="save-step"><b>2</b> THEMES <span>in the .json</span></h5>
+            <div class="save-themes" data-out="themes"></div>
+          </div>
+          <div>
+            <h5 class="save-step"><b>3</b> FORMAT</h5>
+            <div class="save-seg" data-seg="format">
+              <button data-v="wav">.WAV</button><button data-v="json">.JSON</button><button data-v="both">BOTH</button>
+            </div>
+            <p class="save-note" data-out="fmtnote"></p>
+          </div>
+          <div>
+            <h5 class="save-step"><b>4</b> WHERE</h5>
+            <div class="save-seg" data-seg="dest">
+              <button data-v="disk">DISK</button><button data-v="browser">BROWSER</button>
+            </div>
+            <p class="save-note" data-out="destnote"></p>
+          </div>
+        </div>
+        <div class="save-row save-foot">
           <input class="save-name" data-out="name" spellcheck="false" aria-label="File name">
-          <button class="save-go" data-act="save">SAVE WAV</button>
+          <button class="save-go" data-act="save">SAVE</button>
           <button data-act="cancel">CANCEL</button>
         </div>
       </div>`;
+    root.querySelectorAll('[data-seg]').forEach((seg) =>
+      seg.addEventListener('click', (e) => {
+        const v = e.target.closest('[data-v]')?.dataset.v;
+        if (!v) return;
+        this[seg.dataset.seg] = v;
+        setPref(seg.dataset.seg, v);
+        this.syncChoices();
+      }),
+    );
+    root.querySelector('[data-out=secs]').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-sec]');
+      if (!b) return;
+      const s = this.sections()[+b.dataset.sec];
+      if (!s) return;
+      const r = e.shiftKey && this.range ? { from: Math.min(this.range.from, s.from), to: Math.max(this.range.to, s.to) } : { from: s.from, to: s.to };
+      this.setRange(r, false);
+      this.fitView();
+    });
     this.canvas = root.querySelector('canvas');
     this.g = this.canvas.getContext('2d');
     this.nameEl = root.querySelector('[data-out=name]');
@@ -75,6 +134,8 @@ export class SaveDialog {
     this.selection = range;
     this.nameTouched = false;
     this.root.hidden = false;
+    this.renderThemes();
+    this.syncChoices();
     this.setRange(range && range.to > range.from ? range : this.preset('last30'), false);
     this.fitView();
     this.root.querySelector('.save-play').focus();
@@ -85,6 +146,48 @@ export class SaveDialog {
   close() {
     this.o.stop();
     this.root.hidden = true;
+  }
+
+  // ---- choices ----------------------------------------------------------------
+
+  // The song's sections as they are on the tape: [{ from, to, section, style }].
+  sections() {
+    const t = this.tape;
+    const secs = t.markers.filter((m) => m.kind === 'section' && m.frame < t.total);
+    return secs
+      .map((m, i) => ({ from: Math.max(t.firstFrame, m.frame), to: i + 1 < secs.length ? secs[i + 1].frame : t.total, section: m.section, style: m.style }))
+      .filter((s) => s.to > t.firstFrame && s.to - s.from > t.rate * 0.5);
+  }
+
+  renderSections() {
+    const r = this.range;
+    const el = this.root.querySelector('[data-out=secs]');
+    el.innerHTML = this.sections()
+      .map((s, i) => {
+        const inside = r && s.from >= r.from - this.tape.rate * 0.3 && s.to <= r.to + this.tape.rate * 0.3;
+        return `<button data-sec="${i}" class="${inside ? 'on' : ''}" style="--c:${SECTION_COLOR[s.section] || '#888'}">${s.section.toUpperCase()}<small>${fmtTime(s.from / this.tape.rate)}</small></button>`;
+      })
+      .join('');
+  }
+
+  renderThemes() {
+    const list = this.o.themes ? this.o.themes() : [];
+    this.root.querySelector('[data-out=themes]').innerHTML = list.length
+      ? list.map((t) => `<label title="${t.detail || ''}"><input type="checkbox" data-theme="${t.id}" ${t.on ? 'checked' : ''} ${t.disabled ? 'disabled' : ''}> ${t.label}${t.detail ? ` <small>${t.detail}</small>` : ''}</label>`).join('')
+      : '<small>No themes yet.</small>';
+  }
+
+  chosenThemes() {
+    return [...this.root.querySelectorAll('[data-theme]:checked')].map((i) => i.dataset.theme);
+  }
+
+  syncChoices() {
+    for (const seg of this.root.querySelectorAll('[data-seg]')) for (const b of seg.children) b.classList.toggle('on', b.dataset.v === this[seg.dataset.seg]);
+    const out = (k, v) => (this.root.querySelector(`[data-out=${k}]`).textContent = v);
+    out('fmtnote', { wav: 'The audio of the part, as heard.', json: 'Song state, themes and every note of the part: LOAD SET plays it again.', both: 'The audio plus the song file, same name.' }[this.format]);
+    out('destnote', this.dest === 'disk' ? 'A download to your Downloads folder.' : 'Kept in this browser (IndexedDB). Open it from LIBRARY.');
+    this.root.querySelector('.save-themes').classList.toggle('dim', this.format === 'wav');
+    if (this.range && !this.nameTouched) this.nameEl.value = this.o.name(this.range);
   }
 
   // ---- range ------------------------------------------------------------------
@@ -126,6 +229,7 @@ export class SaveDialog {
     }
     if (to - from < t.rate * 0.25) to = Math.min(t.total, from + t.rate * 0.25);
     this.range = { from, to };
+    this.renderSections();
     if (!this.nameTouched) this.nameEl.value = this.o.name(this.range);
     const out = (k, v) => (this.root.querySelector(`[data-out=${k}]`).textContent = v);
     const sec = (f) => (f / t.rate).toFixed(1);
@@ -149,11 +253,12 @@ export class SaveDialog {
     if (a === 'cancel') return this.close();
     if (a === 'save') {
       this.o.stop();
-      this.o.save(r, (this.nameEl.value || this.o.name(r)).replace(/[\\/:*?"<>|]+/g, '-').replace(/(\.wav)?$/i, '.wav'));
+      const name = (this.nameEl.value || this.o.name(r)).replace(/[\\/:*?"<>|]+/g, '-').replace(/\.(wav|json)$/i, '');
+      this.o.save({ range: r, name, format: this.format, dest: this.dest, themes: this.chosenThemes() });
       return this.close();
     }
     if (a === 'play') return this.o.preview() ? this.stopPlay() : this.play();
-    if (['sel', 'sec', 'last30', 'last120', 'all'].includes(a)) {
+    if (['sel', 'last30', 'last120', 'all'].includes(a)) {
       this.setRange(this.preset(a), false);
       return this.fitView();
     }
