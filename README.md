@@ -31,18 +31,26 @@ publishes `main`. The npm dependencies are only for the MCP server below.
 | STYLE SWITCHER 1–9 | Lo-fi, Deep House, Synthwave, Ambient, Chiptune, Liquid DnB, Dub, Adventure, Demo Scene. A change lands on the next bar. |
 | TRANSITION | **NEXT** jumps to the next section, **BREAK** / **BUILD** queue one, **JOURNEY** lets it drift between styles by itself, **PLAY** starts and pauses. |
 | PERFORM | **LOOP** repeats the last 4 bars exactly (the song stops advancing), **FREEZE** loops the current section, **ECHO THROW** sends everything into a runaway dub echo, **FILTER SWEEP**, **HALF-TIME**. |
-| SONG | **NEW SONG** (new seed), **REC** records from now to a WAV file, **LINK** copies a link with the seed and style, **SURPRISE ME**. |
+| SONG | **NEW SONG** (new seed), **REC** records from now to a WAV file, **LINK** copies a link with the seed and style, **SURPRISE ME**, **♥ LIKE** (key H) saves the beat's settings in this browser at once, **TASTE** makes new songs lean toward the liked ones (see below). |
 | AUDIO EFFECT | Auto mixing (the faders ride themselves per section), echo (off by default), reverb, tape wobble; knobs for echo and reverb return, **SURPRISE** and **TEMPO**. |
 | AMBIENCE | Rain, wind, ocean, birds, night, fire, vinyl, city. Off at start; **AUTO** lets each style pick. |
 | AUDIO MIXER | Per part: send (echo + reverb), solo, mute, fader with meter, the instrument (click to change, AUTO lets the style choose), **♻ NEW** (rewrite that part) and **HOLD** (keep this part through section changes and surprises). |
-| SESSION TAPE | Everything you play is kept (the last 10 minutes), with each section and its style marked. Click a section or drag a stretch, then **LISTEN** to hear it again, **GO BACK** to continue the song from that exact point, or **SAVE WAV**. **★ MARK** drops a bookmark. |
+| SESSION TAPE | Everything you play is kept (the last 10 minutes), with each section and its style marked. Click a section or drag a stretch, then **LISTEN** to hear it again, **GO BACK** to continue the song from that exact point, or **SAVE**, which opens a window in four steps: the part (sections as buttons, shift-click for a run of them, or drag the edges), the themes for the .json (A, B, intro, memory slots), the format (.wav, .json or both) and the place (disk download, or this browser's LIBRARY in IndexedDB). A saved .json is a set file that starts at that part. **★ MARK** drops a bookmark. |
 | THEME MEMORY | **STORE** keeps what is playing (the loop, or the last 4 bars) in a slot. Clicking a slot recalls it as the song's base theme: chords, bassline and melody stay, and the composer only varies them. **THEME LOCK** turns that on and off. Shift-click empties a slot. |
-| SET & MIDI FILES | **SAVE SET** / **LOAD SET**: the whole set as JSON (song state, mix, instruments, holds, theme memory). **MIDI OUT**: the played bars (or the selected stretch) as a multi-track MIDI file. **MIDI IN**: the melody of a MIDI file becomes a theme the composer quotes and varies. |
+| SET & MIDI FILES | **SAVE SET** / **LOAD SET**: the whole set as JSON (song state, mix, instruments, holds, theme memory). **MIDI OUT**: the played bars (or the selected stretch) as a multi-track MIDI file. **MIDI IN**: the melody of a MIDI file becomes a theme the composer quotes and varies. **LIBRARY**: liked songs and browser saves (play, load, download, delete), exporting all likes as JSON, and RESET TASTE. |
 | Screen | Spectrum, scope, the song's structure and active layers, and a log of what the composer just did. |
 | SEQUENCER | The bar that is playing, part by part. |
 
-Keys: space play/pause, 1–9 styles, N next, L loop, F freeze, E echo throw, B break, M bookmark, R new song.
+Keys: space play/pause, 1–9 styles, N next, L loop, F freeze, E echo throw, B break, M bookmark, R new song, H like.
 Hover over any control to see what it does in the line under the screen.
+
+## TASTE: learning what you like
+
+Everything stays in the browser; there is no server.
+
+- **♥ LIKE** stores the song's generation parameters (seed, style, the composer's material and full snapshot, instruments) in IndexedDB (`ranger` database, `likes` store). Leaving a song within 40 s without liking it stores a mild "skip".
+- `src/taste.js` turns a song's material into 36 numbers (style, tempo, scale, drum and bass density and syncopation, melody density, range and leaps, harmony colour...) and trains a small neural net (36 → 10 tanh → 1) on likes (positive), skips (negative) and a few random songs (weak negative). It retrains in a few milliseconds after each like; the weights are kept in localStorage.
+- After 3 likes, **NEW SONG** and **SURPRISE ME** draw 16 candidate seeds, score them and pick one weighted by the score; one song in five is still pure chance so it keeps exploring. **TASTE** turns this off. **LIBRARY → EXPORT LIKES .JSON** downloads the data for training something bigger later.
 
 ## Control it from an AI assistant (MCP)
 

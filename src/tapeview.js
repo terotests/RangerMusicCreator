@@ -4,7 +4,7 @@
 
 import { fmtTime } from './tape.js';
 
-const SECTION_COLOR = { intro: '#7aa7ff', verse: '#5ee08a', build: '#ffc04d', drop: '#ff5470', break: '#9b8cff', bridge: '#4dd6e0' };
+export const SECTION_COLOR = { intro: '#7aa7ff', verse: '#5ee08a', build: '#ffc04d', drop: '#ff5470', break: '#9b8cff', bridge: '#4dd6e0' };
 const BAND = 24;
 
 export class TapeView {
@@ -29,14 +29,19 @@ export class TapeView {
       if (!down || !canvas.hasPointerCapture(e.pointerId)) return;
       const p = this.pos(e);
       if (Math.abs(p.x - down.x) < 4) return;
-      const f = this.frameAt(p.x);
-      this.select(Math.min(down.f, f), Math.max(down.f, f));
+      const end = this.tape.total;
+      const f = Math.min(end, this.frameAt(p.x));
+      const a = Math.min(end, down.f);
+      if (a === f) return;
+      this.select(Math.min(a, f), Math.max(a, f));
     });
     canvas.addEventListener('pointerup', (e) => {
       if (!down) return;
       const p = this.pos(e);
       if (Math.abs(p.x - down.x) < 4) {
-        const s = this.tape.sectionAt(down.f);
+        // A click past "now" (the empty end of the strip) clears the selection
+        // instead of picking the last section.
+        const s = down.f < this.tape.total ? this.tape.sectionAt(down.f) : null;
         if (s) this.select(s.from, s.to, s.marker);
         else this.select(null);
       }
