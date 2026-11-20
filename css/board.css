@@ -61,6 +61,19 @@ html, body {
   padding: 2px 12px 3px;
   transform: skewX(-6deg);
 }
+.to-symphony {
+  margin-left: 18px;
+  margin-right: auto;
+  font-size: 15px;
+  letter-spacing: 2px;
+  color: #e7c06a;
+  text-decoration: none;
+  border: 1px solid #b8893a;
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: linear-gradient(180deg, #4a0d14, #2a060b);
+}
+.to-symphony:hover { color: #fff; border-color: #e7c06a; }
 .model { display: flex; align-items: baseline; gap: 14px; }
 .model span { font-size: 17px; letter-spacing: 1px; color: var(--silk); }
 .model b { font-size: 30px; font-weight: 800; color: #fff; }

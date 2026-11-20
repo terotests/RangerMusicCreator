@@ -32,10 +32,48 @@ Melodies in detail:
 | WHEN THE SAINTS | Traditional American spiritual | Traditional (not taken from any recorded arrangement) |
 | AULD LANG SYNE | Traditional Scottish air, 18th century | Traditional |
 
+## Symphony (`symphony.html`)
+
+The symphony page is the one exception to "no samples": it plays real
+orchestral recordings, and they are public domain.
+
+| What | Source | Licence |
+| --- | --- | --- |
+| Orchestra samples (`samples/vsco2/`: string sections, solo contrabass, horn, trumpet, trombone, tuba, flute, oboe, clarinet, bassoon, harp, glockenspiel, timpani, cymbals, bass drum, snare, gong, triangle) | [VS Chamber Orchestra: Community Edition](https://github.com/sgossner/VSCO-2-CE) by Versilian Studios (recorded by Sam Gossner and Simon Dalzell). Trimmed, tuned, looped and converted to MP3 for this project. | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (public domain, no attribution required; credited here anyway) |
+| Hall reverb | Impulse response generated at run time, `src/symphony/orchestra.js` | MIT (this repo) |
+| Original themes and all orchestration | Written by rules and a seed, `src/symphony/composer.js` | MIT (this repo) |
+
+Classics (`src/symphony/classics.js`): only the compositions are used. The
+melodies are written out by ear and harmonised and orchestrated for this
+project; no recording, published edition or arrangement was copied. A piece
+is included only if its composer died more than 70 years ago (free in
+Finland and the EU) and it was published before 1930 (free in the US).
+
+| Piece | Work | Why it is public domain |
+| --- | --- | --- |
+| THE BLUE DANUBE | Johann Strauss II, An der schönen blauen Donau (1866) | Composer died 1899 |
+| ALSO SPRACH ZARATHUSTRA | Richard Strauss, introduction (1896) | Composer died 1949: free in the EU since 1 Jan 2020; published 1896, free in the US |
+| MARS OSTINATO | After Gustav Holst, The Planets: Mars (1914–16). Only the 5/4 rhythm is taken; the harmonies and build are written here | Composer died 1934: free in the EU since 2005; published 1921, free in the US |
+| ODE TO JOY | Ludwig van Beethoven, Symphony No. 9 (1824) | Composer died 1827 |
+| NEW WORLD LARGO | Antonín Dvořák, Symphony No. 9 (1893) | Composer died 1904 |
+| IN THE HALL OF THE MOUNTAIN KING | Edvard Grieg, Peer Gynt (1875) | Composer died 1907 |
+| MORNING MOOD | Edvard Grieg, Peer Gynt (1875) | Composer died 1907 |
+| SWAN LAKE | P. I. Tchaikovsky, Swan Lake (1876) | Composer died 1893 |
+
+Not included: Jean Sibelius (died 1957) is protected in Finland until the
+end of 2027, so Finlandia and the rest wait until 1 January 2028. Film music
+(John Williams and others) is protected; the scenes only follow the general
+habits of the style. Recordings of classical works are protected separately
+from the compositions (in Finland 70 years from release), which is why none
+are used. MIDI scores loaded with MIDI SCORE stay in the browser and are
+never added to this repository: check each file's licence before publishing
+what you make with it.
+
 Rules for adding material:
 
-- New sounds should stay synthesised. If a sample is ever added, it must be
-  CC0 or public domain, and gets a row here with its source URL and licence.
+- New sounds on the desk should stay synthesised. Samples (the symphony
+  page) must be CC0 or public domain, and get a row here with their source
+  URL and licence.
 - New melodies must be public domain (composer dead for more than 70
   years, or traditional), written out by ear rather than copied from a
   modern edition, and get a row in the table above.
