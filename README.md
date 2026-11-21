@@ -44,6 +44,53 @@ publishes `main`. The npm dependencies are only for the MCP server below.
 Keys: space play/pause, 1–9 styles, N next, L loop, F freeze, E echo throw, B break, M bookmark, R new song, H like.
 Hover over any control to see what it does in the line under the screen.
 
+## Symphony: the cinematic orchestra (`symphony.html`)
+
+A second creator with its own page and look, a concert hall: **symphony.html**
+(the **♪ SYMPHONY** button on the desk goes there, **◂ DESK** comes back). It
+composes film-style orchestral music for scenes, and plays public-domain
+classics, with a real sampled orchestra.
+
+![The concert hall](docs/symphony.png)
+
+- **SCENES**: Heroic, Space Wonder, Planet Flyby, Ominous, Adventure, Triumph,
+  Tender. Each writes an original 8-bar theme (with a contrasting bridge) from a
+  seed and orchestrates it through a cinematic form: intro swell, the theme on
+  a solo instrument, the theme in full strings with a horn counter-line, a
+  bridge that builds (snare, cymbal swell, timpani roll, woodwind run), the
+  climax in trumpets and horns a step higher with violins an octave above, and
+  a broad ending (bVI–bVII–I and similar cadences). Then it writes the next
+  theme. The themes follow the habits of large film scores (rising fifth and
+  octave openings, motif and sequence, Lydian and mediant harmony); they do
+  not copy any film's music.
+- **CLASSICS**: The Blue Danube, Also sprach Zarathustra (the sunrise), a Mars
+  build over Holst's 5/4 rhythm, Ode to Joy, the New World Largo, In the Hall of
+  the Mountain King (which speeds up as it goes), Morning Mood and Swan Lake,
+  arranged here (see LICENSES.md).
+- **MIDI SCORE**: load a MIDI file of an orchestral score and the orchestra
+  plays it. Parts are seated by track name (Violin I, Horn, Timpani…) or by
+  General MIDI program; volume and expression controllers shape dynamics.
+- Controls: **TEMPO**, **INTENSITY** with **AUTO SHAPE** (the form builds and
+  relaxes by itself, or stays where you set it), **HALL SIZE** (studio to
+  cathedral, 1.2–4.8 s) and **HALL MIX**, and a fader with mute for strings,
+  woodwinds, brass, percussion and harp & bells (a muted section hands its
+  melody to another one). **CLIMAX!** jumps to the climax, **ENDING** plays the
+  ending and stops, **NEW THEME** writes a new one.
+- **SAVE WAV** renders the piece (or one full cycle of a theme) offline,
+  faster than real time. **LINK** copies a link: `symphony.html?mood=flyby&seed=42`
+  or `symphony.html?piece=danube`.
+
+The orchestra is the [VS Chamber Orchestra Community Edition](https://github.com/sgossner/VSCO-2-CE)
+sample library (CC0): 444 samples picked from it, trimmed, tuned (each note
+is pitch-checked, and notes recorded off-pitch get a fine-tune), given
+crossfaded loops so notes can be held as long as needed, and encoded as MP3
+(17 MB, in `samples/vsco2/`, with `map.json`). Strings play two desks (two
+recorded notes) per part for a fuller section. The hall is a generated
+impulse response whose high end decays first; players further back on the
+stage are darker and wetter. Code: `src/symphony/` (`composer.js` themes and
+orchestration, `classics.js`, `orchestra.js` sampler and hall, `score.js` MIDI
+scores, `stage.js` the hall view, `app.js` the page).
+
 ## TASTE: learning what you like
 
 Everything stays in the browser; there is no server.

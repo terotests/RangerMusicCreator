@@ -1,0 +1,99 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: MIT -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ranger Symphony</title>
+    <meta name="description" content="A cinematic orchestra creator: original film-style themes and public-domain classics, played by a real sampled orchestra in a concert hall." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%234a0d14%27/%3E%3Cpath d=%27M6 26 Q16 8 26 26%27 fill=%27none%27 stroke=%27%23e7c06a%27 stroke-width=%273%27/%3E%3Ccircle cx=%2716%27 cy=%2712%27 r=%273%27 fill=%27%23e7c06a%27/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="css/symphony.css" />
+  </head>
+  <body>
+    <header class="marquee">
+      <a class="back" href="index.html" data-help="Back to the mixing desk (beats and grooves).">◂ DESK</a>
+      <div class="title">
+        <h1>RANGER <em>SYMPHONY</em></h1>
+        <p>CINEMATIC ORCHESTRA CREATOR</p>
+      </div>
+      <button class="info-btn" id="info-btn" data-help="What this is and where the sounds come from.">?</button>
+    </header>
+
+    <main class="hall">
+      <section class="stage-wrap">
+        <canvas id="stage" width="1200" height="560" aria-label="The orchestra on stage; players light up as they play"></canvas>
+        <div class="now" id="now">
+          <div class="now-name" id="now-name">—</div>
+          <div class="now-meta" id="now-meta">Press PLAY</div>
+        </div>
+        <div class="loading" id="loading">
+          <div class="load-card">
+            <div class="load-title">The orchestra is taking its seats…</div>
+            <div class="load-bar"><i id="load-fill"></i></div>
+            <div class="load-text" id="load-text">0 / 0 samples</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="program">
+        <nav class="tabs" role="tablist">
+          <button role="tab" data-tab="scenes" class="on">SCENES</button>
+          <button role="tab" data-tab="classics">CLASSICS</button>
+          <button role="tab" data-tab="score">MIDI SCORE</button>
+        </nav>
+        <div class="cards" id="tab-scenes"></div>
+        <div class="cards" id="tab-classics" hidden></div>
+        <div class="score-tab" id="tab-score" hidden>
+          <p>Load a MIDI file of an orchestral score and the orchestra plays it. Parts are seated by their track names (Violin I, Horn, Timpani…) or General MIDI instruments. Open scores of public-domain works can be found at <a href="https://www.mutopiaproject.org/" target="_blank" rel="noopener">Mutopia</a> and <a href="https://imslp.org/" target="_blank" rel="noopener">IMSLP</a>; check each file's licence before you publish what you make.</p>
+          <button class="btn gold" id="load-score">LOAD MIDI SCORE…</button>
+          <input type="file" id="score-file" accept=".mid,.midi,audio/midi" hidden />
+          <ul class="parts" id="parts"></ul>
+        </div>
+      </section>
+
+      <section class="desk">
+        <div class="transport">
+          <button class="btn big" id="play" data-help="Play / stop (space).">▶ PLAY</button>
+          <button class="btn" id="new" data-help="A new original theme in this scene (N).">NEW THEME</button>
+          <button class="btn" id="next" data-help="Skip to the next section (→).">NEXT ▸</button>
+          <button class="btn red" id="climax" data-help="Go straight to the climax: brass, cymbals, a key change (C).">CLIMAX!</button>
+          <button class="btn" id="ending" data-help="Play the ending and stop (E).">ENDING</button>
+        </div>
+        <div class="knobs">
+          <label class="ctl" data-help="Tempo, from 60% to 140% of the written speed."><span>TEMPO</span><input type="range" id="tempo" min="0.6" max="1.4" step="0.01" value="1" /><output id="tempo-out">100%</output></label>
+          <label class="ctl" data-help="How big it gets: fewer instruments and softer at the left, the full orchestra at the right."><span>INTENSITY</span><input type="range" id="intensity" min="0" max="1" step="0.01" value="0.6" /><output id="intensity-out">60</output></label>
+          <label class="ctl chk" data-help="AUTO: the music builds and relaxes by itself through the form. Off: it stays at the INTENSITY you set."><input type="checkbox" id="auto" checked /><span>AUTO SHAPE</span></label>
+          <label class="ctl" data-help="Size of the hall: a small studio at the left, a cathedral at the right."><span>HALL SIZE</span><input type="range" id="hall-size" min="0" max="1" step="0.01" value="0.55" /><output id="hall-size-out">3.2 s</output></label>
+          <label class="ctl" data-help="How much hall you hear: close microphones at the left, the back of the hall at the right."><span>HALL MIX</span><input type="range" id="hall-mix" min="0" max="1" step="0.01" value="0.5" /><output id="hall-mix-out">50</output></label>
+          <label class="ctl" data-help="Master volume."><span>VOLUME</span><input type="range" id="volume" min="0" max="1.2" step="0.01" value="0.9" /><output id="volume-out">90</output></label>
+        </div>
+        <div class="sections" id="sections"></div>
+        <div class="files">
+          <button class="btn gold" id="save" data-help="Render the piece (or one full cycle of the theme) to a WAV file, faster than real time.">SAVE WAV</button>
+          <button class="btn" id="link" data-help="Copy a link to this scene and theme.">LINK</button>
+          <span class="help-line" id="help-line">Hover over a control to see what it does.</span>
+        </div>
+      </section>
+    </main>
+
+    <div id="info" hidden>
+      <div class="info-card">
+        <button class="info-close" aria-label="Close">×</button>
+        <h2>Ranger Symphony</h2>
+        <p>An orchestra that composes film music for your scenes. Pick a <b>scene</b> and it writes an original theme and orchestrates it through a cinematic form: an intro swell, the theme on a solo instrument, the theme in full strings, a bridge that builds, the climax in the brass a step higher, and a big ending. Then it writes the next theme. The themes are written by rules from a seed, in the manner of large film scores; they are not copies of any film's music.</p>
+        <p><b>Classics</b> are public-domain works (the composers died more than 70 years ago), arranged here and played with the same orchestra. No recordings are used, so nothing in what you save belongs to a record label. Sibelius is left out until his works become free in Finland on 1 January 2028.</p>
+        <p><b>The orchestra</b> is the VS Chamber Orchestra Community Edition sample library by Versilian Studios, released as CC0 (public domain): real players recorded note by note. The hall is a reverb generated in your browser. What you record is yours to use, in games too, with no royalties.</p>
+        <ul>
+          <li><b>INTENSITY</b> sets how big it gets; <b>AUTO SHAPE</b> lets the form build and relax by itself.</li>
+          <li><b>CLIMAX!</b> jumps to the climax, <b>ENDING</b> plays the ending and stops, <b>NEW THEME</b> writes a new one.</li>
+          <li>The faders under the desk set each section; <b>M</b> mutes it and the melody moves to another section.</li>
+          <li><b>SAVE WAV</b> renders the piece faster than real time. <b>LINK</b> copies a link to the scene and its seed.</li>
+          <li>Keys: space play/stop, N new theme, → next section, C climax, E ending.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <noscript>Ranger Symphony needs JavaScript and Web Audio.</noscript>
+    <script type="module" src="src/symphony/app.js"></script>
+  </body>
+</html>
