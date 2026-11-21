@@ -253,37 +253,36 @@ export function writeMelody(rng, S, key, minor, bars, kind, lo, hi, around = nul
   return out;
 }
 
-// A solo bar built on the tune: the A melody's strong notes kept as a
-// skeleton, with runs filled in between them as the energy rises.
-function soloBar(rng, S, key, minor, chords, lo, hi, theme, prev, energy) {
+// The solo is a variation on the tune, not a new line: the A melody keeps
+// its notes and rhythm, the second half of the phrase goes up an octave
+// when it fits, and a held note may lead into the next one with one or two
+// eighth-note steps. So the idea never gets lost under runs.
+function soloBar(rng, S, key, minor, chords, lo, hi, theme, prev, energy, barIn = 0) {
   const keyScale = scaleOf(key, S, minor);
-  const unit = S.soloUnit || 0.5;
   const beats = S.beats;
-  const shift = theme.length ? Math.round((prev - theme[0].m) / 12) * 12 : 0;
-  const skel = theme.map((x) => ({ ...x, m: clamp(x.m + shift, lo, hi) }));
+  const up = barIn % 8 >= 4 && theme.every((x) => x.m + 12 <= hi);
+  const skel = theme.map((x) => ({ ...x, m: clamp(x.m + (up ? 12 : 0), lo, hi) }));
   const out = [];
-  const busy = energy > 0.6 ? unit : unit * 2;
   skel.forEach((x, k) => {
-    const end = skel[k + 1]?.b ?? beats;
+    const next = skel[k + 1];
+    const end = next?.b ?? beats;
     const room = end - x.b;
     const { tones } = notesFor(key, chordAt(chords, x.b), S, keyScale);
-    const m0 = nearest(x.m, tones);
-    if (room < busy * 2 || rng.chance(0.3)) {
+    const m0 = isIn(x.m, tones) || x.d < 1 ? x.m : nearest(x.m, tones);
+    const steps = next ? Math.abs(next.m - m0) : 0;
+    if (!next || room < 1.5 || steps < 3 || steps > 7 || !rng.chance(0.35 + 0.3 * energy)) {
       out.push({ b: x.b, d: Math.min(x.d, room), m: m0 });
       return;
     }
-    // Hold the note, then run by step to the next skeleton note.
-    const target = skel[k + 1]?.m ?? m0 + (rng.chance(0.5) ? 2 : -2);
-    const runN = Math.min(Math.floor(room / busy) - 1, 6);
-    const start = end - runN * busy;
+    const runN = steps >= 5 ? 2 : 1;
+    const start = end - runN * 0.5;
     out.push({ b: x.b, d: start - x.b, m: m0 });
     let m = m0;
-    const dir = Math.sign(target - m) || (rng.chance(0.5) ? 1 : -1);
+    const dir = Math.sign(next.m - m0);
     for (let j = 0; j < runN; j++) {
-      const b = start + j * busy;
-      const { passing } = notesFor(key, chordAt(chords, b), S, keyScale);
+      const { passing } = notesFor(key, chordAt(chords, start + j * 0.5), S, keyScale);
       m = clamp(scaleStep(m, dir, passing), lo, hi);
-      out.push({ b, d: busy * 0.95, m });
+      out.push({ b: start + j * 0.5, d: 0.48, m });
     }
   });
   return out;
@@ -614,9 +613,11 @@ export class RetroComposer {
         sec[k] = { chords: chordBars(theme.chords, beats), melody: remixTheme(rng, theme, SS, key, lo, hi) };
       } else {
         const chords = chordBars(rng.pick(progs[k]), beats);
-        // A remix's B is written from the theme's own rhythms.
-        const rh = theme ? [0, 1, 2, 7].map((j) => sec.A.melody[j].map((x) => [x.b, x.d])).map((r) => (r.length ? r : null)) : null;
-        sec[k] = { chords, melody: writeMelody(rng, SS, key, minor, chords, k, lo, hi, around, rh) };
+        // A remix's B is the theme's own motif carried through the B chords
+        // as a sequence (moved by scale steps with each chord), the way a
+        // pop bridge reuses its hook; other songs get a written B.
+        const melody = theme ? sequenceTheme(sec.A, chords, key, minor, SS, lo, hi) : writeMelody(rng, SS, key, minor, chords, k, lo, hi, around);
+        sec[k] = { chords, melody };
       }
       // The chorus is centred on the verse's own register.
       const ms = sec[k].melody.flat().map((x) => x.m);
@@ -739,7 +740,7 @@ export class RetroComposer {
       const r = this.players.range[song.soloist] || [60, 84];
       const prev = this.state.solo ?? Math.round((r[0] + r[1]) / 2);
       const theme = song.sec.A.melody[step.i % song.sec.A.melody.length] || [];
-      const line = soloBar(rng, S, key, song.minor, chords, Math.max(r[0], 58), Math.min(r[1], 88), theme, prev, energy);
+      const line = soloBar(rng, S, key, song.minor, chords, Math.max(r[0], 58), Math.min(r[1], 88), theme, prev, energy, step.i);
       if (line.length) this.state.solo = line[line.length - 1].m;
       add(this.leadEvents(song.soloist, line, c, 0, 0.66));
     }
@@ -877,6 +878,64 @@ function pickTheme(rng, beats, minor) {
   if (!fit.length) return null;
   const same = fit.filter((t) => t.minor === minor);
   return rng.pick(same.length ? same : fit);
+}
+
+// ---- sequences ------------------------------------------------------------------
+
+const MAJ_SC = [0, 2, 4, 5, 7, 9, 11];
+const MIN_SC = [0, 2, 3, 5, 7, 8, 10];
+
+function degreeOf(m, tonic, minor) {
+  const sc = minor ? MIN_SC : MAJ_SC;
+  const rel = m - tonic;
+  const oct = Math.floor(rel / 12);
+  const r = rel - oct * 12;
+  let idx = sc.indexOf(r);
+  let alt = 0;
+  if (idx < 0) [idx, alt] = [sc.indexOf(r - 1), 1];
+  if (idx < 0) [idx, alt] = [sc.indexOf(r + 1), -1];
+  return { deg: idx + 7 * oct, alt };
+}
+
+function pitchOf(deg, alt, tonic, minor) {
+  const sc = minor ? MIN_SC : MAJ_SC;
+  const oct = Math.floor(deg / 7);
+  return tonic + sc[deg - 7 * oct] + 12 * oct + alt;
+}
+
+// B from A: each B bar takes the A bar in the same place of a four-bar
+// phrase and moves it by the scale steps between the two chords' roots
+// (never more than three steps, so it stays in the register). Strong notes
+// that then rub against the B chord move to the nearest chord note, and the
+// last bar lands on the chord's root.
+function sequenceTheme(A, chords, key, minor, S, lo, hi) {
+  const tonic = 60 + key;
+  const rootDeg = (ch) => degreeOf(tonic + ch.r, tonic, minor).deg;
+  const n = chords.length;
+  return chords.map((bar, i) => {
+    const j = i % 4 + (i >= 4 && A.melody.length > 4 ? 4 : 0);
+    const src = A.melody[Math.min(j, A.melody.length - 1)] || [];
+    const aCh = A.chords[Math.min(j, A.chords.length - 1)];
+    const out = src.map((x) => {
+      const ch = chordAt(bar, x.b);
+      let sh = (((rootDeg(ch) - rootDeg(chordAt(aCh, x.b))) % 7) + 7) % 7;
+      if (sh > 3) sh -= 7;
+      const { deg, alt } = degreeOf(x.m, tonic, minor);
+      let m = pitchOf(deg + sh, alt, tonic, minor);
+      const tones = chordTones(key, ch, S);
+      const strong = x.d >= 0.75 || Math.abs(x.b - Math.round(x.b)) < 1e-6 && Math.round(x.b) % 2 === 0;
+      const rub = tones.some((t) => [1, 11].includes(pc(m - t)));
+      if (!isIn(m, tones) && (strong || (rub && x.d >= 0.75))) m = nearest(m, tones);
+      while (m > hi) m -= 12;
+      while (m < lo - 2) m += 12;
+      return { b: x.b, d: x.d, m };
+    });
+    if (i === n - 1 && out.length) {
+      const last = out[out.length - 1];
+      last.m = nearest(last.m, [(key + bar[bar.length - 1].r) % 12]);
+    }
+    return out;
+  });
 }
 
 // The theme moved to the song's key and the octave that sits best in the
