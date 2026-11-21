@@ -75,7 +75,7 @@ const guitar = voice((ctx, out, ev, t, dur) => {
 // Closed hats are short and snappy; harder hits are brighter and ring a
 // touch longer, soft ones are dark and tight, so the groove has dynamics.
 const HAT_HZ = [205.3, 304.4, 369.6, 522.7, 540, 800];
-const metalHat = voice((ctx, out, ev, t) => {
+export const metalHat = voice((ctx, out, ev, t) => {
   const open = ev.a === 'open';
   const v = Math.max(0.05, Math.min(1, ev.v));
   const decay = open ? 0.18 + 0.12 * v : 0.018 + 0.04 * v * v;
@@ -120,7 +120,7 @@ const metalHat = voice((ctx, out, ev, t) => {
 // Snare: a tuned drum head (two sines that drop in pitch) with a short,
 // mid-range rattle. Much drier than the gated 1980s snare, so it cracks
 // instead of hissing; a light 'ghost' hit is softer and duller still.
-const popSnare = voice((ctx, out, ev, t) => {
+export const popSnare = voice((ctx, out, ev, t) => {
   const v = Math.max(0.05, Math.min(1, ev.v));
   const ghost = ev.a === 'ghost';
   const amp = (peak, decay) => {

@@ -7,6 +7,7 @@
 
 import * as V from './voices.js';
 import { hihat } from '../jazz/band.js';
+import { popSnare, metalHat } from '../pop/bands.js';
 
 // ---- Space Age ------------------------------------------------------------------
 
@@ -124,7 +125,7 @@ export const SYNTH_BAND = {
   sections: SYNTH_SECTIONS.map(([k]) => k),
   sets: {}, hits: {}, kit: {}, setGain: {}, ring: new Set(), ensemble: [],
   synth: {
-    kick: V.kick, snare: V.snare, clap: V.clap, hat: V.hat, crash: V.crash, etom: V.etom, sweep: V.sweep,
+    kick: V.kick, snare: popSnare, clap: V.clap, hat: metalHat, crash: V.crash, etom: V.etom, sweep: V.sweep,
     bass: V.synthBass, arp: V.arp, ep: V.ep, bell: V.bell, brass: V.brass, pad: V.pad, str: V.strings, vox: V.vox, lead: V.lead,
   },
   fx: {
