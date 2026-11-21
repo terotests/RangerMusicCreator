@@ -48,7 +48,7 @@ const RING = new Set(['xyl', 'blk', 'cym', 'bd', 'sn', 'ride', 'tap', 'tom']);
 
 // A closed hi-hat: filtered noise with a fast decay ('open' rings longer).
 const noiseCache = new WeakMap();
-function hihat(ctx, out, ev, t, dur, active) {
+export function hihat(ctx, out, ev, t, dur, active) {
   let buf = noiseCache.get(ctx);
   if (!buf) {
     buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.6), ctx.sampleRate);

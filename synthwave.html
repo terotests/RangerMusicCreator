@@ -1,0 +1,96 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: MIT -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ranger Synthwave</title>
+    <meta name="description" content="A synthwave creator: original outrun, Italo disco, darksynth and dreamwave tracks, all synthesized in the browser." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%230b0322%27/%3E%3Cpath d=%27M6 18a10 10 0 0 1 20 0z%27 fill=%27%23ff3f9e%27/%3E%3Cpath d=%27M4 22h24M4 26h24M16 18L8 30M16 18l8 12%27 stroke=%27%2300e5ff%27/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="css/jazz.css" />
+  </head>
+  <body data-band="synthwave">
+    <header class="marquee">
+      <nav class="nav">
+        <a href="index.html" data-help="The mixing desk: beats and grooves.">DESK</a>
+        <a href="symphony.html" data-help="The cinematic orchestra.">SYMPHONY</a>
+        <a href="ragtime.html" data-help="Ragtime and early jazz.">RAGTIME</a>
+        <a href="bigband.html" data-help="The swing-era big band.">BIG BAND</a>
+        <a href="spaceage.html" data-help="Space-age lounge and exotica.">SPACE AGE</a>
+      </nav>
+      <div class="title">
+        <h1>RANGER <em>SYNTHWAVE</em></h1>
+        <p>NEON SYNTHS · DRUM MACHINES · 1980s</p>
+      </div>
+      <button class="info-btn" id="info-btn" data-help="What this is and where the sounds come from.">?</button>
+    </header>
+
+    <main class="hall">
+      <section class="stage-wrap">
+        <canvas id="stage" width="1200" height="520" aria-label="The band on stage; players light up as they play"></canvas>
+        <div class="now">
+          <div class="now-name" id="now-name">—</div>
+          <div class="now-meta" id="now-meta">Press PLAY</div>
+        </div>
+        <div class="loading" id="loading">
+          <div class="load-card">
+            <div class="load-title">Powering up the synths…</div>
+            <div class="load-bar"><i id="load-fill"></i></div>
+            <div class="load-text" id="load-text">no samples needed</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="program">
+        <nav class="tabs" role="tablist">
+          <button role="tab" data-tab="styles" class="on">STYLES</button>
+          <button role="tab" data-tab="pieces">CLASSICS</button>
+        </nav>
+        <div class="cards" id="tab-styles"></div>
+        <div class="cards" id="tab-pieces" hidden></div>
+      </section>
+
+      <section class="desk">
+        <div class="transport">
+          <button class="btn big" id="play" data-help="Play / stop (space).">▶ PLAY</button>
+          <button class="btn" id="new" data-help="A new original tune in this style (N).">NEW TUNE</button>
+          <button class="btn" id="next" data-help="Skip to the next part: theme, bridge, solo, the big finish (→).">NEXT ▸</button>
+          <button class="btn red" id="climax" data-help="Jump to the big finish: brass, choir, often up a key (C).">OVERDRIVE!</button>
+          <button class="btn" id="ending" data-help="Play the outro and the final chord (E).">ENDING</button>
+        </div>
+        <div class="knobs">
+          <label class="ctl" data-help="Tempo, from 60% to 140% of the written speed."><span>TEMPO</span><input type="range" id="tempo" min="0.6" max="1.4" step="0.01" value="1" /><output id="tempo-out">100%</output></label>
+          <label class="ctl" data-help="How much is going on: a few instruments at the left, everyone at the right."><span>INTENSITY</span><input type="range" id="intensity" min="0" max="1" step="0.01" value="0.6" /><output id="intensity-out">60</output></label>
+          <label class="ctl chk" data-help="AUTO: the music builds by itself through the song. Off: it stays at the INTENSITY you set."><input type="checkbox" id="auto" checked /><span>AUTO SHAPE</span></label>
+          <label class="ctl" data-help="Size of the reverb: a small room at the left, a huge hall at the right."><span>REVERB SIZE</span><input type="range" id="hall-size" min="0" max="1" step="0.01" value="0.45" /><output id="hall-size-out"></output></label>
+          <label class="ctl" data-help="How much of it you hear."><span>REVERB MIX</span><input type="range" id="hall-mix" min="0" max="1" step="0.01" value="0.32" /><output id="hall-mix-out">35</output></label>
+          <label class="ctl" data-help="Master volume."><span>VOLUME</span><input type="range" id="volume" min="0" max="1.2" step="0.01" value="0.9" /><output id="volume-out">90</output></label>
+        </div>
+        <div class="sections" id="sections"></div>
+        <div class="files">
+          <button class="btn gold" id="save" data-help="Render the whole song to a WAV file.">SAVE WAV</button>
+          <button class="btn" id="link" data-help="Copy a link to this piece.">LINK</button>
+          <span class="help-line" id="help-line">Hover over a control to see what it does.</span>
+        </div>
+      </section>
+    </main>
+
+    <div id="info" hidden>
+      <div class="info-card">
+        <button class="info-close" aria-label="Close">×</button>
+        <h2>Ranger Synthwave</h2>
+        <p>The sound of 1980s synth-pop and film scores, made new: outrun night drives, Italo disco, darksynth, dreamwave and a TV-show fanfare. Pick a <b>style</b> and the composer writes an original tune with an A theme and a B bridge, and arranges it: an intro, the theme, the bridge, a lead solo, the theme again with brass and choir, often a key change, and an outro. Then it writes the next one.</p>
+        <p><b>Classics</b> are public-domain pieces given the synth treatment: Grieg's <i>In the Hall of the Mountain King</i> (1875), getting faster with every round, and the opening of the <i>Toccata in D minor</i>, BWV 565, attributed to J. S. Bach. Only public-domain compositions are used; no recording or arrangement by anyone else.</p>
+        <p><b>The sounds</b> are all synthesized in your browser from oscillators and noise: saw leads with echoes, arpeggiators, pads with chorus, an FM electric piano, synth brass, a vowel choir and a drum machine with a gated snare. No samples, so nothing anyone else owns. What you save is yours to use, in games too, with no royalties.</p>
+        <ul>
+          <li><b>NEXT ▸</b> skips to the next part; <b>OVERDRIVE!</b> jumps to the big finish; <b>ENDING</b> plays the outro.</li>
+          <li>The faders set each section; <b>M</b> mutes it.</li>
+          <li>Keys: space play/stop, N new tune, → next part, C big finish, E ending.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <noscript>Ranger Synthwave needs JavaScript and Web Audio.</noscript>
+    <script type="module" src="src/retro/app.js"></script>
+  </body>
+</html>
