@@ -119,7 +119,7 @@ export class SampleBank {
 // The symphony orchestra; other bands pass their own (see src/jazz/band.js).
 export const SYMPHONY_BAND = {
   seats: SEATS, sets: SETS, hits: HITS, sectionOf: SECTION_OF, sections: ['strings', 'brass', 'winds', 'perc', 'harp'],
-  ring: RING, release: RELEASE, ensemble: ['strings'], kit: {}, synth: {}, setGain: {},
+  ring: RING, release: RELEASE, ensemble: ['strings'], kit: {}, synth: {}, setGain: {}, fx: {},
 };
 
 export class Orchestra {
@@ -200,8 +200,12 @@ export class Orchestra {
       tone.frequency.value = 16000 - seat.depth * 7000; // far players a touch darker
       const pan = ctx.createStereoPanner();
       pan.pan.value = seat.pan;
-      input.connect(tone).connect(pan).connect(this.sections[this.band.sectionOf[p]].gain);
-      this.players[p] = { input, seat };
+      input.connect(tone).connect(pan);
+      // A band can give a player its own effect (a tempo-synced delay, a chorus).
+      const fx = this.band.fx?.[p]?.(ctx);
+      if (fx) pan.connect(fx.input), fx.output.connect(this.sections[this.band.sectionOf[p]].gain);
+      else pan.connect(this.sections[this.band.sectionOf[p]].gain);
+      this.players[p] = { input, seat, fx, spb: 0 };
     }
     this.setHall(0.6, 0.5);
   }
@@ -319,6 +323,10 @@ export class Orchestra {
     const dur = Math.max(0.05, ev.d * spb);
     const v = ev.v;
     const v2 = ev.v2 ?? v;
+    if (pl.fx?.tempo && pl.spb !== spb) {
+      pl.spb = spb;
+      pl.fx.tempo(spb, t);
+    }
     if (B.synth[ev.i]) {
       B.synth[ev.i](ctx, pl.input, ev, t, dur, this.active);
       for (const fn of this.listeners) fn(ev, t, dur);

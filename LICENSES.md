@@ -99,6 +99,27 @@ end of 2028, Glenn Miller's and Benny Goodman's band arrangements). Only the
 general habits of the style are used: close-harmony section writing, riffs,
 shout choruses, walking bass and the ride-cymbal beat.
 
+## Space Age and Synthwave (`spaceage.html`, `synthwave.html`)
+
+| What | Source | Licence |
+| --- | --- | --- |
+| Space Age samples (`samples/space/`: marimba, high and low bongos, open congas, claves, guiro, maracas) | [VS Chamber Orchestra: Community Edition](https://github.com/sgossner/VSCO-2-CE) by Versilian Studios, including its 'VSCO 1 Percussion' folder. Trimmed and converted to MP3 by `scripts/build-space-samples.py`. The page also uses `samples/vsco2/` (violins, violas, cellos, flute, harp, glockenspiel, timpani, pizzicato bass, cymbal) and `samples/jazz/` (upright piano, muted and vibrato trumpet, trombone, ride, snare taps). | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| Vibraphone, drawbar organ, theremin, flying saucer, birds; every Synthwave sound (saw lead, arpeggiator, pads, strings, FM electric piano, bell, synth brass, vowel choir, drum machine with gated snare, toms, noise sweeps) | Synthesised at play time from oscillators and noise, `src/retro/voices.js` and `src/instruments.js` | MIT (this repo) |
+| Original tunes and all arrangements | Written by rules and a seed, `src/retro/composer.js`, `src/retro/space.js`, `src/retro/synthwave.js`. Only the habits of the styles are used (beguine, cha-cha and bossa rhythms, theremin over strings, I–V–vi–IV and i–VI–III–VII loops, gated snares, octave basses); no melody, recording or arrangement by anyone else. | MIT (this repo) |
+
+Public-domain pieces:
+
+| Piece | Work | Source of the notes | Why it is public domain |
+| --- | --- | --- | --- |
+| GREENSLEEVES | Traditional English, 16th century | Written out by ear in `src/retro/space.js` | Traditional |
+| IN THE HALL OF THE MOUNTAIN KING | Edvard Grieg, Peer Gynt (1875) | The theme written out by ear in `src/retro/synthwave.js` | Composer died 1907 |
+| TOCCATA IN D MINOR | BWV 565, attributed to J. S. Bach | The opening written out by ear in `src/retro/synthwave.js`; the rest of the track is generated | Composer died 1750 |
+
+Left out on purpose: the space-age and 1980s hits themselves (Les Baxter,
+Martin Denny, Esquivel, film and TV themes, synth-pop records) are still
+protected, as are modern synth covers of the classics above. Only style
+traits are used.
+
 Rules for adding material:
 
 - New sounds on the desk should stay synthesised. Samples (the symphony

@@ -1,0 +1,96 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: MIT -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ranger Space Age</title>
+    <meta name="description" content="A space-age lounge creator: original exotica, theremin, cha-cha and bossa tunes played by sampled strings, marimba and Latin percussion with synthesized vibraphone, organ and theremin." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%230d262b%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%276%27 fill=%27%23f29b4b%27/%3E%3Cellipse cx=%2716%27 cy=%2716%27 rx=%2713%27 ry=%274%27 fill=%27none%27 stroke=%27%2357d6c4%27 stroke-width=%272%27 transform=%27rotate(-20 16 16)%27/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="css/jazz.css" />
+  </head>
+  <body data-band="space">
+    <header class="marquee">
+      <nav class="nav">
+        <a href="index.html" data-help="The mixing desk: beats and grooves.">DESK</a>
+        <a href="symphony.html" data-help="The cinematic orchestra.">SYMPHONY</a>
+        <a href="ragtime.html" data-help="Ragtime and early jazz.">RAGTIME</a>
+        <a href="bigband.html" data-help="The swing-era big band.">BIG BAND</a>
+        <a href="synthwave.html" data-help="Neon synthwave.">SYNTHWAVE</a>
+      </nav>
+      <div class="title">
+        <h1>RANGER <em>SPACE AGE</em></h1>
+        <p>HI-FI LOUNGE · EXOTICA · 1955–1965</p>
+      </div>
+      <button class="info-btn" id="info-btn" data-help="What this is and where the sounds come from.">?</button>
+    </header>
+
+    <main class="hall">
+      <section class="stage-wrap">
+        <canvas id="stage" width="1200" height="520" aria-label="The band on stage; players light up as they play"></canvas>
+        <div class="now">
+          <div class="now-name" id="now-name">—</div>
+          <div class="now-meta" id="now-meta">Press PLAY</div>
+        </div>
+        <div class="loading" id="loading">
+          <div class="load-card">
+            <div class="load-title">Warming up the hi-fi…</div>
+            <div class="load-bar"><i id="load-fill"></i></div>
+            <div class="load-text" id="load-text">0 / 0 samples</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="program">
+        <nav class="tabs" role="tablist">
+          <button role="tab" data-tab="styles" class="on">STYLES</button>
+          <button role="tab" data-tab="pieces">CLASSICS</button>
+        </nav>
+        <div class="cards" id="tab-styles"></div>
+        <div class="cards" id="tab-pieces" hidden></div>
+      </section>
+
+      <section class="desk">
+        <div class="transport">
+          <button class="btn big" id="play" data-help="Play / stop (space).">▶ PLAY</button>
+          <button class="btn" id="new" data-help="A new original tune in this style (N).">NEW TUNE</button>
+          <button class="btn" id="next" data-help="Skip to the next part: theme, bridge, solo, the big finish (→).">NEXT ▸</button>
+          <button class="btn red" id="climax" data-help="Jump to the big finish: everyone in, often up a key (C).">LIFT-OFF!</button>
+          <button class="btn" id="ending" data-help="Play the outro and the final chord (E).">ENDING</button>
+        </div>
+        <div class="knobs">
+          <label class="ctl" data-help="Tempo, from 60% to 140% of the written speed."><span>TEMPO</span><input type="range" id="tempo" min="0.6" max="1.4" step="0.01" value="1" /><output id="tempo-out">100%</output></label>
+          <label class="ctl" data-help="How much is going on: a few instruments at the left, everyone at the right."><span>INTENSITY</span><input type="range" id="intensity" min="0" max="1" step="0.01" value="0.6" /><output id="intensity-out">60</output></label>
+          <label class="ctl chk" data-help="AUTO: the music builds by itself through the song. Off: it stays at the INTENSITY you set."><input type="checkbox" id="auto" checked /><span>AUTO SHAPE</span></label>
+          <label class="ctl" data-help="Size of the room: a small lounge at the left, a big studio echo chamber at the right."><span>ECHO CHAMBER</span><input type="range" id="hall-size" min="0" max="1" step="0.01" value="0.35" /><output id="hall-size-out"></output></label>
+          <label class="ctl" data-help="How much of it you hear."><span>ECHO MIX</span><input type="range" id="hall-mix" min="0" max="1" step="0.01" value="0.4" /><output id="hall-mix-out">35</output></label>
+          <label class="ctl" data-help="Master volume."><span>VOLUME</span><input type="range" id="volume" min="0" max="1.2" step="0.01" value="0.9" /><output id="volume-out">90</output></label>
+        </div>
+        <div class="sections" id="sections"></div>
+        <div class="files">
+          <button class="btn gold" id="save" data-help="Render the whole song to a WAV file.">SAVE WAV</button>
+          <button class="btn" id="link" data-help="Copy a link to this piece.">LINK</button>
+          <span class="help-line" id="help-line">Hover over a control to see what it does.</span>
+        </div>
+      </section>
+    </main>
+
+    <div id="info" hidden>
+      <div class="info-card">
+        <button class="info-close" aria-label="Close">×</button>
+        <h2>Ranger Space Age</h2>
+        <p>The hi-fi lounge music of 1955–1965: exotica, science-fiction theremin, cha-cha "bachelor pad" records, bossa lounge and space waltzes. Pick a <b>style</b> and the composer writes an original tune with an A theme and a B bridge, and arranges it: an intro, the theme, the bridge, an improvised solo on vibes, marimba, organ or theremin, the theme again with more instruments and often a key change, and an outro. Then it writes the next one.</p>
+        <p><b>Classics</b> are public-domain melodies: <i>Greensleeves</i> (traditional) as a space waltz. Only public-domain compositions are used; no recording or arrangement by anyone else.</p>
+        <p><b>The sounds.</b> Strings, flute, harp, glockenspiel, timpani, muted trumpet and trombone, upright piano, pizzicato bass, marimba, bongos, congas, claves, guiro and maracas are samples from the VS Chamber Orchestra Community Edition by Versilian Studios (CC0, public domain). The vibraphone, the organ, the theremin, the flying saucers and the birds are synthesized in your browser. What you save is yours to use, in games too, with no royalties.</p>
+        <ul>
+          <li><b>NEXT ▸</b> skips to the next part; <b>LIFT-OFF!</b> jumps to the big finish; <b>ENDING</b> plays the outro.</li>
+          <li>The faders set each section; <b>M</b> mutes it.</li>
+          <li>Keys: space play/stop, N new tune, → next part, C big finish, E ending.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <noscript>Ranger Space Age needs JavaScript and Web Audio.</noscript>
+    <script type="module" src="src/retro/app.js"></script>
+  </body>
+</html>
