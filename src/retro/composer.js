@@ -14,6 +14,8 @@
 import { Rng } from '../rng.js';
 import { bars as chordBars, pcs as chordPcs, fourPcs, chordAt, scalePcs, snap, fit, NAMES, swingEvents } from '../jazz/theory.js';
 import { chordName } from '../jazz/ragtime.js';
+import { THEMES } from './themes.js';
+import { tune } from './tunes.js';
 
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const pc = (m) => ((m % 12) + 12) % 12;
@@ -207,15 +209,15 @@ function lineBar(rng, rhythm, chords, key, S, keyScale, prev, lo, hi, goal, fixe
 // the same rhythm answered higher, the idea again (refitted to its chords),
 // a rising bar and a cadence on the root. B (the chorus or bridge) sits in
 // the same register as A and comes down, so it does not strain upwards.
-export function writeMelody(rng, S, key, minor, bars, kind, lo, hi, around = null) {
+export function writeMelody(rng, S, key, minor, bars, kind, lo, hi, around = null, rhythms = null) {
   const cells = CELLS[S.cells] || CELLS.lounge;
   const pool = kind === 'B' ? [...cells.long, ...cells.main.slice(0, 3)] : cells.main;
   const keyScale = scaleOf(key, S, minor);
   const n = bars.length;
-  const c0 = rng.pick(pool);
-  const c1 = rng.pick(pool);
-  const c2 = rng.pick(pool);
-  const cEnd = rng.pick(cells.end);
+  const c0 = rhythms?.[0] || rng.pick(pool);
+  const c1 = rhythms?.[1] || rng.pick(pool);
+  const c2 = rhythms?.[2] || rng.pick(pool);
+  const cEnd = rhythms?.[3] || rng.pick(cells.end);
   const span = hi - lo;
   const center = around ?? Math.round(lo + span * 0.42);
   // Where each bar of the phrase heads, relative to the centre.
@@ -227,13 +229,15 @@ export function writeMelody(rng, S, key, minor, bars, kind, lo, hi, around = nul
     const goal = clamp(center + shape[ph], lo + 2, hi - 3);
     let notes;
     if (ph === 7 || i === n - 1) {
-      const ch = bars[i][0];
-      const root = (key + ch.r) % 12;
-      const tones = ch.r === 0 ? [root, (root + (minor ? 3 : 4)) % 12] : chordTones(key, ch, S);
-      let m = clamp(nearest(prev - 1, tones), lo, hi);
+      let m = prev + 1;
       notes = cEnd.map(([b, d], k) => {
-        if (k === cEnd.length - 1 && ch.r === 0) m = clamp(nearest(m - (k ? 1 : 0), [root]), lo, hi);
-        else if (k) m = clamp(nearest(m - 2, tones), lo, hi);
+        const ch = chordAt(bars[i], b);
+        const root = (key + ch.r) % 12;
+        const tones = ch.r === 0 ? [root, (root + (minor ? 3 : 4)) % 12] : chordTones(key, ch, S);
+        if (k === cEnd.length - 1 && ch.r === 0) m = nearest(m - 1, [root]);
+        else m = nearest(m - 2, tones);
+        if (m < lo) m += 12;
+        if (m > hi) m -= 12;
         return { b, d, m };
       });
     } else if (ph === 4 || ph === 5) {
@@ -503,10 +507,16 @@ export const DRUMS = {
   dark: { kick: grid('x.....x...x.....', 0.95), snare: grid('........x.......', 0.95), hat: grid('xxxxxxxxxxxxxxxx', 0.32) },
   dream: { kick: grid('x.........x.....', 0.75), snare: grid('....x.......x...', 0.65), hat: grid('x.x.x.x.x.x.x.x.', 0.3), clap: grid('............x...', 0.4) },
   drive: { kick: grid('x......x..x.....', 0.85), snare: grid('....x.......x...', 0.8), hat: grid('x.xxx.xxx.xxx.xx', 0.38) },
+  // Second grooves for the B sections and solos, so the beat changes with the song.
+  outrunB: { kick: grid('x...x...x...x...', 0.85), snare: grid('....x.......x...', 0.8), hat: grid('..o...o...o...o.', 0.4) },
+  italoB: { kick: grid('x...x...x...x...', 0.85), clap: grid('....x.......x...', 0.7), hat: grid('x.o.x.o.x.o.x.o.', 0.36) },
+  darkB: { kick: grid('x.x...x.x.x.....', 0.9), snare: grid('....x.......x...', 0.85), hat: grid('..x...x...x...x.', 0.34) },
+  dreamB: { kick: grid('x.....x...x.....', 0.75), snare: grid('....x.......x...', 0.65), hat: grid('x.xxx.xxx.xxx.xx', 0.26), clap: grid('....x.......x...', 0.3) },
+  driveB: { kick: grid('x...x...x...x...', 0.85), snare: grid('....x.......x...', 0.8), hat: grid('..o...o...o...o.', 0.4) },
 };
 
 function drumPart(c, name) {
-  const g = DRUMS[name];
+  const g = (c.section === 'B' || c.section === 'solo') && DRUMS[name + 'B'] ? DRUMS[name + 'B'] : DRUMS[name];
   const out = [];
   const e = c.energy;
   for (const [p, hits] of Object.entries(g)) {
@@ -514,12 +524,21 @@ function drumPart(c, name) {
     for (const [b, v, a] of hits) {
       if (b >= c.beats) continue;
       // Light parts drop out when it is quiet.
-      if (e < 0.3 && (p === 'mrc' || p === 'hat' || p === 'bgh') && Math.abs(b - Math.round(b)) > 1e-6) continue;
-      out.push({ i: p, a: a || 'hit', b, d: a === 'open' ? 0.5 : 0.25, v: clamp(v * (0.75 + 0.4 * e) * (0.92 + c.rng.next() * 0.16), 0.05, 1) });
+      const off = Math.abs(b - Math.round(b)) > 1e-6;
+      const sixteenth = Math.abs(b * 2 - Math.round(b * 2)) > 1e-6;
+      if (e < 0.3 && (p === 'mrc' || p === 'hat' || p === 'bgh') && off) continue;
+      // Hats: sixteenths only once the song builds, and accented like a
+      // drummer's hand (beat, offbeat, then the soft in-between notes).
+      let acc = 1;
+      if (p === 'hat') {
+        if (sixteenth && e < 0.55) continue;
+        acc = sixteenth ? 0.55 : off ? 0.8 : 1;
+      }
+      out.push({ i: p, a: a || 'hit', b, d: a === 'open' ? 0.5 : 0.25, v: clamp(v * acc * (0.75 + 0.4 * e) * (0.92 + c.rng.next() * 0.16), 0.05, 1) });
     }
   }
   // Busier hats at high energy.
-  if (g.hat && e > 0.75 && name !== 'dark' && name !== 'italo') for (let b = 0.25; b < c.beats; b += 0.5) out.push({ i: 'hat', a: 'hit', b, d: 0.2, v: 0.22 });
+  if (g.hat && e > 0.75 && name !== 'dark' && name !== 'italo') for (let b = 0.25; b < c.beats; b += 0.5) out.push({ i: 'hat', a: 'hit', b, d: 0.2, v: 0.15 });
   return out;
 }
 
@@ -574,9 +593,12 @@ export class RetroComposer {
     const rng = this.rng;
     const P = this.piece;
     const S = this.styles[P ? P.style : this.styleId];
-    const minor = P ? !!P.minor : rng.chance(S.minor ?? 0);
-    const key = P ? P.key : rng.pick(S.keys);
+    const wantMinor = P ? !!P.minor : rng.chance(S.minor ?? 0);
     const beats = P?.beats || S.beats || 4;
+    // Style songs are remixes of a public-domain theme.
+    const theme = P || S.remix === false ? null : pickTheme(rng, beats, wantMinor);
+    const minor = theme ? theme.minor : wantMinor;
+    const key = P ? P.key : rng.pick(S.keys);
     const SS = { ...S, beats, isMinor: minor };
     const lead = this.players.range[S.lead.A[0]] || [60, 84];
     const lo = Math.max(lead[0], S.melodyLo ?? 64);
@@ -588,9 +610,13 @@ export class RetroComposer {
       if (P?.sections?.[k]) {
         const ps = P.sections[k];
         sec[k] = { chords: chordBars(ps.chords, beats), melody: ps.melody };
+      } else if (theme && k === 'A') {
+        sec[k] = { chords: chordBars(theme.chords, beats), melody: remixTheme(rng, theme, SS, key, lo, hi) };
       } else {
         const chords = chordBars(rng.pick(progs[k]), beats);
-        sec[k] = { chords, melody: writeMelody(rng, SS, key, minor, chords, k, lo, hi, around) };
+        // A remix's B is written from the theme's own rhythms.
+        const rh = theme ? [0, 1, 2, 7].map((j) => sec.A.melody[j].map((x) => [x.b, x.d])).map((r) => (r.length ? r : null)) : null;
+        sec[k] = { chords, melody: writeMelody(rng, SS, key, minor, chords, k, lo, hi, around, rh) };
       }
       // The chorus is centred on the verse's own register.
       const ms = sec[k].melody.flat().map((x) => x.m);
@@ -601,7 +627,8 @@ export class RetroComposer {
     const form = P?.form || S.form || ['intro', 'A', 'A', 'B', 'A', 'solo', 'B', 'A2', 'outro'];
     this.song = {
       S: SS, key, minor, bpm, sec, intro, form,
-      name: P ? P.name : songName(rng, S.names),
+      name: P ? P.name : theme ? `${theme.name} (${songName(rng, S.names)} mix)` : songName(rng, S.names),
+      theme: theme ? { id: theme.id, name: theme.name, source: theme.source } : null,
       soloist: rng.pick(S.lead.solo || S.lead.A),
       lift: P ? P.lift ?? 0 : S.lift ? rng.pick(S.lift) : 0,
       accel: P?.accel ?? 1,
@@ -840,6 +867,46 @@ export class RetroComposer {
     this.barNo++;
     return { beats: this.song.S.beats, bpm: 100, events: [], info: { section: 'rest', name: this.song.name, bar: this.barNo } };
   }
+}
+
+// ---- remixes ------------------------------------------------------------------
+
+// A theme in the wanted mode and metre (any mode when none fits).
+function pickTheme(rng, beats, minor) {
+  const fit = THEMES.filter((t) => t.beats === beats);
+  if (!fit.length) return null;
+  const same = fit.filter((t) => t.minor === minor);
+  return rng.pick(same.length ? same : fit);
+}
+
+// The theme moved to the song's key and the octave that sits best in the
+// lead's range, with the style's rhythm feel: synth styles push some notes
+// an eighth ahead of the beat, as synth-pop does.
+function remixTheme(rng, theme, S, key, lo, hi) {
+  const base = (((key - theme.key) % 12) + 12) % 12;
+  const want = lo + (hi - lo) * 0.42;
+  let best = null;
+  let bestScore = Infinity;
+  for (const oct of [-24, -12, 0, 12, 24]) {
+    const mel = tune(theme.melody, base + oct);
+    const ms = mel.flat().map((x) => x.m);
+    const mean = ms.reduce((a, b) => a + b, 0) / ms.length;
+    const out = ms.filter((m) => m < lo - 2 || m > hi).length;
+    const score = Math.abs(mean - want) + out * 4;
+    if (score < bestScore) [best, bestScore] = [mel, score];
+  }
+  if (S.cells === 'synth') {
+    for (const bar of best) for (let k = 1; k < bar.length; k++) {
+      const p = bar[k - 1];
+      const n = bar[k];
+      if (n.b >= 1 && Number.isInteger(n.b) && p.d >= 1 && Math.abs(p.b + p.d - n.b) < 1e-6 && rng.chance(0.4)) {
+        p.d -= 0.5;
+        n.b -= 0.5;
+        n.d += 0.5;
+      }
+    }
+  }
+  return best;
 }
 
 const PART_FNS = { bass: bassPart, walk: walkPart, comp: compPart, pad: sectionPad, arp: arpPart, gliss: glissPart, sparkle: sparklePart, brass: brassPart, fx: fxPart };

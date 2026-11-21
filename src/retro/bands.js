@@ -140,7 +140,7 @@ export const SYNTH_BAND = {
     kick: { pan: 0, depth: 0, gain: 0.72 },
     snare: { pan: 0.04, depth: 0.1, gain: 0.9 },
     clap: { pan: -0.06, depth: 0.1, gain: 0.8 },
-    hat: { pan: 0.3, depth: 0.1, gain: 0.55 },
+    hat: { pan: 0.3, depth: 0.15, gain: 0.38 },
     crash: { pan: -0.3, depth: 0.15, gain: 0.6 },
     etom: { pan: -0.2, depth: 0.1, gain: 0.8 },
     sweep: { pan: 0, depth: 0.2, gain: 0.6 },

@@ -159,12 +159,34 @@ test('retro tunes: chord tones on long notes, chorus not above the verse', async
     const s = new SynthComposer({ style, seed }).song;
     const avg = (k) => { const ms = s.sec[k].melody.flat().map((x) => x.m); return ms.reduce((a, b) => a + b, 0) / ms.length; };
     assert.ok(avg('B') <= avg('A') + 4, `${style}/${seed}: chorus ${avg('B')} vs verse ${avg('A')}`);
-    for (const k of ['A', 'B']) s.sec[k].melody.forEach((bar, i) => {
+    for (const k of s.theme ? ['B'] : ['A', 'B']) s.sec[k].melody.forEach((bar, i) => {
       for (const n of bar) if (n.d >= 1) {
         const ch = chordAt(s.sec[k].chords[i], n.b);
         const t = [...pcs(s.key, ch).slice(0, 3), ...(s.S.add9 ? [(s.key + ch.r + 2) % 12] : [])];
         assert.ok(t.includes(pc(n.m)), `${style}/${seed} ${k}${i}: long note ${n.m} not in chord`);
       }
     });
+  }
+});
+
+test('retro style songs are remixes of public-domain themes', async () => {
+  const { SynthComposer, SYNTH_STYLE_IDS } = await import('../src/retro/synthwave.js');
+  const { SpaceComposer, SPACE_STYLE_IDS } = await import('../src/retro/space.js');
+  const { THEMES } = await import('../src/retro/themes.js');
+  const lic = readFileSync(new URL('../LICENSES.md', import.meta.url), 'utf8');
+  for (const t of THEMES) {
+    assert.ok(lic.includes(t.source), `LICENSES.md lists ${t.source}`);
+    const mel = tune(t.melody);
+    assert.equal(mel.length, 8, t.id);
+    assert.equal(t.chords.trim().split(/\s+/).length, 8, t.id);
+    mel.forEach((bar, i) => {
+      const end = bar.length ? bar[bar.length - 1].b + bar[bar.length - 1].d : t.beats;
+      assert.ok(end <= t.beats + 1e-6, `${t.id} bar ${i + 1} has ${end} beats`);
+    });
+  }
+  for (const [C, ids] of [[SynthComposer, SYNTH_STYLE_IDS], [SpaceComposer, SPACE_STYLE_IDS]]) for (const style of ids) {
+    const c = new C({ style, seed: 3 });
+    assert.ok(c.song.theme, `${style} picks a theme`);
+    for (let k = 0; k < 40; k++) assert.ok(c.nextBar());
   }
 });
