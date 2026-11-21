@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: MIT */
-/* The jazz pages. Ragtime: an old sheet-music cover, cream paper, sepia ink
-   and a red border. Big band: an art-deco ballroom, midnight blue and gold. */
+/* The style pages. Ragtime: an old sheet-music cover, cream paper, sepia ink
+   and a red border. Big band: an art-deco ballroom, midnight blue and gold.
+   Space Age: an atomic-age lounge, deep teal, tangerine and turquoise.
+   Synthwave: neon pink and cyan on a night-purple grid. */
 :root {
   --bg: #f1e3c2;
   --paper: #f7ecd2;
@@ -31,6 +33,36 @@ body[data-band='bigband'] {
   --font: Futura, 'Avenir Next', 'Gill Sans', 'Trebuchet MS', sans-serif;
   --display: Futura, 'Avenir Next Condensed', 'Gill Sans', 'Trebuchet MS', sans-serif;
 }
+body[data-band='space'] {
+  --bg: #0d262b;
+  --paper: #123238;
+  --ink: #f3ead8;
+  --ink-2: #a9c2bd;
+  --accent: #f29b4b;
+  --accent-2: #57d6c4;
+  --line: rgba(242, 155, 75, 0.38);
+  --panel: rgba(16, 44, 50, 0.88);
+  --btn: linear-gradient(180deg, #19414a, #123238);
+  --btn-ink: #f3ead8;
+  --hi: #57d6c4;
+  --font: Futura, 'Avenir Next', 'Century Gothic', 'Trebuchet MS', sans-serif;
+  --display: Futura, 'Avenir Next', 'Century Gothic', 'Trebuchet MS', sans-serif;
+}
+body[data-band='synthwave'] {
+  --bg: #0b0322;
+  --paper: #160936;
+  --ink: #f6e9ff;
+  --ink-2: #b9a6d9;
+  --accent: #ff3f9e;
+  --accent-2: #00e5ff;
+  --line: rgba(255, 63, 158, 0.42);
+  --panel: rgba(22, 9, 54, 0.88);
+  --btn: linear-gradient(180deg, #24104f, #160936);
+  --btn-ink: #f6e9ff;
+  --hi: #00e5ff;
+  --font: 'Avenir Next', 'Segoe UI', 'Trebuchet MS', sans-serif;
+  --display: 'Avenir Next Condensed', 'Arial Narrow', 'Avenir Next', 'Trebuchet MS', sans-serif;
+}
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { margin: 0; }
@@ -50,6 +82,21 @@ body[data-band='bigband'] {
   background:
     radial-gradient(ellipse at 50% -20%, rgba(217, 180, 90, 0.22), transparent 55%),
     repeating-linear-gradient(90deg, rgba(217, 180, 90, 0.05) 0 1px, transparent 1px 40px),
+    var(--bg);
+  background-attachment: fixed;
+}
+body[data-band='space'] {
+  background:
+    radial-gradient(ellipse at 80% -10%, rgba(87, 214, 196, 0.18), transparent 50%),
+    radial-gradient(ellipse at 10% 110%, rgba(242, 155, 75, 0.14), transparent 50%),
+    var(--bg);
+  background-attachment: fixed;
+}
+body[data-band='synthwave'] {
+  background:
+    linear-gradient(180deg, transparent 60%, rgba(255, 63, 158, 0.12)),
+    repeating-linear-gradient(90deg, rgba(0, 229, 255, 0.05) 0 1px, transparent 1px 48px),
+    repeating-linear-gradient(0deg, rgba(255, 63, 158, 0.05) 0 1px, transparent 1px 48px),
     var(--bg);
   background-attachment: fixed;
 }
@@ -85,6 +132,10 @@ body[data-band='ragtime'] .title h1 { text-shadow: 2px 2px 0 rgba(59, 36, 20, 0.
 body[data-band='ragtime'] .title h1 em { font-style: italic; color: var(--ink); }
 body[data-band='bigband'] .title h1 { font-weight: 700; letter-spacing: 10px; text-shadow: 0 0 18px rgba(217, 180, 90, 0.35); }
 body[data-band='bigband'] .title h1 em { font-style: normal; color: var(--ink); font-weight: 400; }
+body[data-band='space'] .title h1 { font-style: italic; font-weight: 700; letter-spacing: 7px; text-shadow: 3px 3px 0 rgba(87, 214, 196, 0.35); }
+body[data-band='space'] .title h1 em { font-style: italic; color: var(--accent-2); font-weight: 400; }
+body[data-band='synthwave'] .title h1 { font-weight: 800; letter-spacing: 9px; text-transform: uppercase; color: #ffd9f0; text-shadow: 0 0 6px var(--accent), 0 0 18px var(--accent), 0 0 34px rgba(255, 63, 158, 0.6); }
+body[data-band='synthwave'] .title h1 em { font-style: italic; color: var(--accent-2); text-shadow: 0 0 6px var(--accent-2), 0 0 18px var(--accent-2); }
 .title p { margin: 0; font-size: 12px; letter-spacing: 6px; color: var(--ink-2); }
 .info-btn {
   justify-self: end;
@@ -106,6 +157,14 @@ body[data-band='ragtime'] .stage-wrap {
 body[data-band='bigband'] .stage-wrap {
   border-radius: 18px 18px 4px 4px;
   box-shadow: 0 0 0 2px var(--accent), 0 0 0 7px #0b1020, 0 0 0 8px var(--accent), 0 18px 40px rgba(0, 0, 0, 0.6);
+}
+body[data-band='space'] .stage-wrap {
+  border-radius: 40px 40px 8px 8px;
+  box-shadow: 0 0 0 2px var(--accent), 0 0 0 6px var(--bg), 0 0 0 7px var(--accent-2), 0 18px 40px rgba(0, 0, 0, 0.55);
+}
+body[data-band='synthwave'] .stage-wrap {
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px var(--accent-2), 0 0 18px rgba(0, 229, 255, 0.35), 0 0 40px rgba(255, 63, 158, 0.3);
 }
 #stage { display: block; width: 100%; height: auto; }
 .now {
@@ -156,10 +215,11 @@ body[data-band='ragtime'] .program, body[data-band='ragtime'] .desk { box-shadow
 .card:hover { border-color: var(--accent); transform: translateY(-1px); }
 .card.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
 .card b { display: block; letter-spacing: 2px; font: 400 14px var(--display); color: var(--accent); }
-body[data-band='bigband'] .card b { font-weight: 700; }
+body[data-band='bigband'] .card b, body[data-band='space'] .card b, body[data-band='synthwave'] .card b { font-weight: 700; }
 .card small { display: block; color: var(--ink-2); font-size: 12.5px; margin-top: 2px; }
 .card .pd { color: #4f7a43; font-size: 11.5px; margin-top: 4px; }
-body[data-band='bigband'] .card .pd { color: #9fc79a; }
+body[data-band='bigband'] .card .pd, body[data-band='space'] .card .pd { color: #9fc79a; }
+body[data-band='synthwave'] .card .pd { color: #7ff5c9; }
 
 .desk { display: grid; gap: 12px; }
 .transport, .files { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -177,7 +237,8 @@ body[data-band='bigband'] .card .pd { color: #9fc79a; }
 .btn:hover { border-color: var(--accent); }
 .btn:disabled { opacity: 0.45; cursor: default; }
 .btn.big { min-width: 120px; font-size: 16px; color: #fff8e6; background: var(--accent); border-color: var(--accent); }
-body[data-band='bigband'] .btn.big { color: #0b1020; font-weight: 700; }
+body[data-band='bigband'] .btn.big, body[data-band='space'] .btn.big { color: #0b1020; font-weight: 700; }
+body[data-band='synthwave'] .btn.big { color: #fff; font-weight: 700; text-shadow: 0 0 6px rgba(255, 255, 255, 0.6); }
 .btn.big.on { box-shadow: 0 0 14px var(--accent); }
 .btn.red { border-color: var(--accent-2); color: var(--accent-2); }
 .btn.gold { color: var(--accent); border-color: var(--accent); }

@@ -5,7 +5,7 @@
 // risers behind music stands, the rhythm section at the side, and a
 // spotlight on whoever takes a solo.
 
-class BaseStage {
+export class BaseStage {
   constructor(canvas) {
     this.c = canvas;
     this.g = canvas.getContext('2d');

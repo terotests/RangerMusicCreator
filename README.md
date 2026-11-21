@@ -139,6 +139,32 @@ by `scripts/build-jazz-samples.py`; the hi-hat is synthesised. Code:
 `app.js`). Links: `ragtime.html?style=stomp&seed=7`, `ragtime.html?piece=maple`,
 `bigband.html?style=jump&seed=5`, `bigband.html?tune=saints`.
 
+## Space Age and Synthwave (`spaceage.html`, `synthwave.html`)
+
+Two more pages on the same engine, each with five styles and public-domain
+classics. The composer (`src/retro/composer.js`) writes an original song (an
+8-bar A theme, an 8-bar B bridge, an intro vamp) and plays it through a form:
+intro, A, A, B, A, solo, B, the theme again louder and often up a key, outro
+and a final chord. Layers (comping, pads, ostinatos, arpeggios, percussion)
+come in as the energy rises; NEXT, the big-finish button and ENDING jump
+through the form.
+
+- **Space Age** (1955–1965): EXOTICA, THEREMIN ORBIT, BACHELOR PAD,
+  COCKTAIL LOUNGE, MOON WALTZ, and Greensleeves as a space waltz. CC0
+  samples for strings, flute, harp, celeste, timpani, muted brass, piano,
+  marimba and Latin percussion; vibraphone, organ, theremin, flying saucers
+  and birds are synthesized.
+- **Synthwave** (1980s): OUTRUN, ITALO DISCO, DARKSYNTH, DREAMWAVE, TV THEME,
+  plus Grieg's In the Hall of the Mountain King (speeding up every round)
+  and the opening of Bach's Toccata in D minor. Everything is synthesized:
+  no samples to load.
+
+Links: `spaceage.html?style=orbit&seed=7`, `spaceage.html?piece=greensleeves`,
+`synthwave.html?style=dark&seed=3`, `synthwave.html?piece=mountain`.
+
+The style pages share `src/stagepage.js` (transport, cards, faders, stage,
+SAVE WAV); each page passes its band, composer and stage.
+
 ## TASTE: learning what you like
 
 Everything stays in the browser; there is no server.
