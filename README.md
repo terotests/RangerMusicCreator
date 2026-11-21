@@ -162,6 +162,35 @@ through the form.
 Links: `spaceage.html?style=orbit&seed=7`, `spaceage.html?piece=greensleeves`,
 `synthwave.html?style=dark&seed=3`, `synthwave.html?piece=mountain`.
 
+## Pop Machine (`popmachine.html`)
+
+A path from old music to modern pop. Much instrumental pop is one short riff,
+repeated and transformed over a loop of four chords, and Bach's preludes work
+the same way. The machine (`src/pop/composer.js`) takes a riff (a one- or
+two-bar public-domain figure from `src/pop/riffs.js`, or a new motif it
+writes) and a chord loop (`src/pop/progressions.js`), and plays a song: intro
+(the riff alone), verse, build-up, chorus, breakdown, verse, build-up, chorus,
+the chorus again in a higher key, outro.
+
+What it does to the riff, shown on the stage as it happens: it holds the riff
+while the chords change under it, moves it with the chords by scale steps
+(a sequence), in exact semitones or as broken chords, makes every fourth bar
+an answer phrase, plays it at half time in the breakdown, doubles it in
+octaves in the chorus and lifts the last chorus by one to three semitones.
+
+- **The path**: BAROQUE POP (1966), MOOG POP (1972), TV DRIVE (1982),
+  ANTHEM (1986), EURODANCE (1994), EDM POP (2015). All synthesized.
+- **Riffs**: Bach (Prelude in C, Cello Suite No. 1, Invention No. 1, Little
+  Fugue, Toccata), Pachelbel, Vivaldi, Mozart (Symphony No. 40, Rondo alla
+  Turca), Beethoven (Für Elise), Grieg, Rimsky-Korsakov.
+- **Chord loops**: thirteen loops, each with its bass line, how it moves and
+  where it is used: I–V–vi–IV, vi–IV–I–V, I–vi–IV–V, Pachelbel, IV–V–iii–vi,
+  I–bVII–IV–I, vi–ii–V–I, I–iii–IV–iv, i–bVII–bVI–V, i–bVI–bIII–bVII,
+  i–bVI–bVII–i, i–iv–bVII–bIII and La Folia.
+
+Links: `popmachine.html?style=moog&seed=5&riff=elise&prog=andalusian`
+(`riff` and `prog` are optional; without them the machine chooses).
+
 The style pages share `src/stagepage.js` (transport, cards, faders, stage,
 SAVE WAV); each page passes its band, composer and stage.
 

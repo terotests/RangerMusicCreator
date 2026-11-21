@@ -1,0 +1,106 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: MIT -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ranger Pop Machine</title>
+    <meta name="description" content="A pop machine: one riff from Bach, Mozart or Beethoven, repeated and transformed over the four-chord loops of pop, from Baroque pop to EDM. All synthesized in the browser." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%230b0322%27/%3E%3Cpath d=%27M6 18a10 10 0 0 1 20 0z%27 fill=%27%23ffa03c%27/%3E%3Cpath d=%27M4 22h24M4 26h24M16 18L8 30M16 18l8 12%27 stroke=%27%23fff0c0%27/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="css/jazz.css" />
+  </head>
+  <body data-band="pop">
+    <header class="marquee">
+      <nav class="nav">
+        <a href="index.html" data-help="The mixing desk: beats and grooves.">DESK</a>
+        <a href="symphony.html" data-help="The cinematic orchestra.">SYMPHONY</a>
+        <a href="ragtime.html" data-help="Ragtime and early jazz.">RAGTIME</a>
+        <a href="bigband.html" data-help="The swing-era big band.">BIG BAND</a>
+        <a href="spaceage.html" data-help="Space-age lounge and exotica.">SPACE AGE</a>
+        <a href="synthwave.html" data-help="Neon synthwave.">SYNTHWAVE</a>
+      </nav>
+      <div class="title">
+        <h1>RANGER <em>POP MACHINE</em></h1>
+        <p>ONE RIFF · FOUR CHORDS · BACH TO EDM</p>
+      </div>
+      <button class="info-btn" id="info-btn" data-help="How the machine works and where the riffs come from.">?</button>
+    </header>
+
+    <main class="hall">
+      <section class="stage-wrap">
+        <canvas id="stage" width="1200" height="520" aria-label="The chord loop, the riff on a piano roll and what is done to it"></canvas>
+        <div class="now">
+          <div class="now-name" id="now-name">—</div>
+          <div class="now-meta" id="now-meta">Press PLAY</div>
+        </div>
+        <div class="loading" id="loading">
+          <div class="load-card">
+            <div class="load-title">Warming up the machine…</div>
+            <div class="load-bar"><i id="load-fill"></i></div>
+            <div class="load-text" id="load-text">no samples needed</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="program">
+        <nav class="tabs" role="tablist">
+          <button role="tab" data-tab="styles" class="on" data-help="The machines, from Baroque pop to EDM.">THE PATH</button>
+          <button role="tab" data-tab="riffs" data-help="The riff: a public-domain classical figure or a new motif.">RIFFS</button>
+          <button role="tab" data-tab="chords" data-help="The chord loops of pop and how they move.">CHORD LOOPS</button>
+        </nav>
+        <div class="cards" id="tab-styles"></div>
+        <div class="cards" id="tab-riffs" hidden></div>
+        <div class="cards wide" id="tab-chords" hidden></div>
+      </section>
+
+      <section class="desk">
+        <div class="transport">
+          <button class="btn big" id="play" data-help="Play / stop (space).">▶ PLAY</button>
+          <button class="btn" id="new" data-help="A new song: another riff, loop and key (N).">NEW SONG</button>
+          <button class="btn" id="next" data-help="Skip to the next part: verse, build-up, chorus, breakdown (→).">NEXT ▸</button>
+          <button class="btn red" id="climax" data-help="Jump to the last chorus, lifted into a higher key (C).">KEY CHANGE!</button>
+          <button class="btn" id="ending" data-help="Play the outro and the final chord (E).">ENDING</button>
+        </div>
+        <div class="knobs">
+          <label class="ctl" data-help="Tempo, from 60% to 140% of the written speed."><span>TEMPO</span><input type="range" id="tempo" min="0.6" max="1.4" step="0.01" value="1" /><output id="tempo-out">100%</output></label>
+          <label class="ctl" data-help="How much is going on: a few instruments at the left, everyone at the right."><span>INTENSITY</span><input type="range" id="intensity" min="0" max="1" step="0.01" value="0.6" /><output id="intensity-out">60</output></label>
+          <label class="ctl chk" data-help="AUTO: the music builds by itself through the song. Off: it stays at the INTENSITY you set."><input type="checkbox" id="auto" checked /><span>AUTO SHAPE</span></label>
+          <label class="ctl" data-help="Size of the reverb: a small room at the left, a huge hall at the right."><span>REVERB SIZE</span><input type="range" id="hall-size" min="0" max="1" step="0.01" value="0.45" /><output id="hall-size-out"></output></label>
+          <label class="ctl" data-help="How much of it you hear."><span>REVERB MIX</span><input type="range" id="hall-mix" min="0" max="1" step="0.01" value="0.32" /><output id="hall-mix-out">35</output></label>
+          <label class="ctl" data-help="Master volume."><span>VOLUME</span><input type="range" id="volume" min="0" max="1.2" step="0.01" value="0.9" /><output id="volume-out">90</output></label>
+        </div>
+        <div class="sections" id="sections"></div>
+        <div class="files">
+          <button class="btn gold" id="save" data-help="Render the whole song to a WAV file.">SAVE WAV</button>
+          <button class="btn" id="link" data-help="Copy a link to this piece.">LINK</button>
+          <span class="help-line" id="help-line">Hover over a control to see what it does.</span>
+        </div>
+      </section>
+    </main>
+
+    <div id="info" hidden>
+      <div class="info-card">
+        <button class="info-close" aria-label="Close">×</button>
+        <h2>Ranger Pop Machine</h2>
+        <p>A lot of instrumental pop is one short riff, repeated and changed over a loop of four chords. The 1970s synth hits, the 1980s TV themes and the stadium anthems all do it, and so did Bach: his preludes take one figure and walk it through a chain of chords. The machine builds songs that way.</p>
+        <p><b>The riff</b> is a public-domain figure, one or two bars of Bach, Pachelbel, Vivaldi, Mozart, Beethoven, Grieg or Rimsky-Korsakov, or a new motif the machine writes. <b>The chord loop</b> comes from the CHORD LOOPS tab, where each loop says how it moves. Then the riff is worked on, and the screen tells you how:</p>
+        <ul>
+          <li><b>RIFF HOLDS · CHORDS MOVE</b>: the riff stays the same while the harmony changes under it.</li>
+          <li><b>SEQUENCE ↑2</b>: the riff moves up or down the scale with the chord, keeping its shape.</li>
+          <li><b>TRANSPOSED +5</b>: the riff moves in exact semitones, the way a rock riff does.</li>
+          <li><b>BROKEN CHORDS</b>: the figure is re-voiced onto each new chord, as in Bach's Prelude in C.</li>
+          <li><b>ANSWER</b>: every fourth bar the riff breaks off and lands, like a reply.</li>
+          <li><b>HALF TIME</b> in the breakdown, <b>DOUBLED</b> in octaves in the chorus, and a <b>KEY CHANGE</b> to lift the last chorus.</li>
+        </ul>
+        <p><b>The path</b> runs from Baroque pop (1966) through Moog pop (1972), TV drive (1982), the anthem (1986) and Eurodance (1994) to EDM pop (2015). Only the habits of those styles are used: no melody, recording or arrangement of any record. The famous synth hits and film themes are still protected, so none of their tunes are here.</p>
+        <p><b>The sounds</b> are all synthesized in your browser. What you save is yours to use, in games too, with no royalties.</p>
+        <ul>
+          <li>Keys: space play/stop, N new song, → next part, C key change, E ending.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <noscript>Ranger Pop Machine needs JavaScript and Web Audio.</noscript>
+    <script type="module" src="src/pop/app.js"></script>
+  </body>
+</html>

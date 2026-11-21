@@ -148,6 +148,36 @@ this project claims nothing in them. Melodies you load with MIDI IN stay in
 your browser and set files and are never added to this repository: only load
 music you have the rights to use.
 
+## Pop Machine (`popmachine.html`)
+
+| What | Source | Licence |
+| --- | --- | --- |
+| Every sound (harpsichord, staccato synth lead, Moog-style bass, supersaw, pluck, pumping pad, FM piano, power-chord guitar, tambourine and the Synthwave voices and drum machine) | Synthesised at play time, `src/pop/bands.js`, `src/retro/voices.js`, `src/instruments.js` | MIT (this repo) |
+| Songs, arrangements, chord-loop notes and machine motifs | Written by rules and a seed, `src/pop/`. Chord loops are common property; only the habits of the styles are used. | MIT (this repo) |
+
+Public-domain riffs (one or two bars each, written out by ear in `src/pop/riffs.js`):
+
+| Riff | Work | Why it is public domain |
+| --- | --- | --- |
+| PRELUDE IN C | J. S. Bach, Prelude in C major, BWV 846 (1722) | Composer died 1750 |
+| CELLO SUITE NO. 1 | J. S. Bach, Cello Suite No. 1, Prelude, BWV 1007 | Composer died 1750 |
+| INVENTION NO. 1 | J. S. Bach, Invention No. 1, BWV 772 (1723) | Composer died 1750 |
+| LITTLE FUGUE | J. S. Bach, Fugue in G minor, BWV 578 | Composer died 1750 |
+| TOCCATA IN D MINOR | BWV 565, attributed to J. S. Bach | Composer died 1750 |
+| CANON IN D | Johann Pachelbel (c. 1680) | Composer died 1706 |
+| SPRING | Antonio Vivaldi, The Four Seasons (1725) | Composer died 1741 |
+| SYMPHONY NO. 40 | W. A. Mozart (1788) | Composer died 1791 |
+| RONDO ALLA TURCA | W. A. Mozart, Piano Sonata K. 331 (1783) | Composer died 1791 |
+| FÜR ELISE | Ludwig van Beethoven, WoO 59 (1810) | Composer died 1827 |
+| MOUNTAIN KING | Edvard Grieg, Peer Gynt (1875) | Composer died 1907 |
+| FLIGHT OF THE BUMBLEBEE | Nikolai Rimsky-Korsakov, The Tale of Tsar Saltan (1900) | Composer died 1908 |
+
+Left out on purpose: the synth-pop and film hits the styles are named after
+(1970s synth instrumentals, 1980s TV and film themes, Eurodance and EDM
+records) are protected. Their melodies, recordings and arrangements are not
+used; only general traits are (staccato synth riffs, sequencer basses,
+gated drums, key changes, build-ups and drops).
+
 The MCP server uses [`@modelcontextprotocol/sdk`](https://github.com/modelcontextprotocol/typescript-sdk)
 (MIT), [`ws`](https://github.com/websockets/ws) (MIT) and
 [`zod`](https://github.com/colinhacks/zod) (MIT). The browser app does not use them.

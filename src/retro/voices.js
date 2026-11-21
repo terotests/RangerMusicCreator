@@ -260,18 +260,19 @@ export const vox = voice((ctx, out, ev, t, dur) => {
 export const kick = voice((ctx, out, ev, t) => kickDrum(ctx, out, t, ev.v, { pitch: 52, end: 38, decay: 0.42, click: 0.35, drive: 0.15, gain: 1.15 }), 0.6);
 // The big 80s snare: a body, wires, and a burst of room cut off short (gated reverb).
 export const snare = voice((ctx, out, ev, t) => {
-  snareDrum(ctx, out, t, ev.v, { tone: 190, color: 7000, noise: 0.8, decay: 0.32, gated: true, gain: 0.55 });
+  snareDrum(ctx, out, t, ev.v, { tone: 190, color: 4500, noise: 0.55, decay: 0.16, gated: true, gain: 0.5 });
   const n = noise(ctx);
   const bp = ctx.createBiquadFilter();
   bp.type = 'bandpass';
   bp.frequency.value = 1800;
   bp.Q.value = 0.6;
   const g = ctx.createGain();
-  const lvl = 0.16 * ev.v;
+  // A short gated room: enough for the 1980s snap, not a wash of noise.
+  const lvl = 0.06 * ev.v;
   g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(lvl, t + 0.012);
-  g.gain.setValueAtTime(lvl * 0.8, t + 0.24);
-  g.gain.linearRampToValueAtTime(0, t + 0.27);
+  g.gain.linearRampToValueAtTime(lvl, t + 0.01);
+  g.gain.setValueAtTime(lvl * 0.7, t + 0.11);
+  g.gain.linearRampToValueAtTime(0, t + 0.13);
   n.connect(bp).connect(g).connect(out);
   n.start(t, Math.random());
   n.stop(t + 0.3);
