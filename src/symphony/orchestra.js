@@ -374,6 +374,9 @@ export class Orchestra {
         src.loopStart = smp.loop[0];
         src.loopEnd = smp.loop[1];
       }
+      // Skip the silent or breathy lead-in of slow-speaking samples so the
+      // note sounds on the beat (offset measured by scripts/measure-onsets.py).
+      const off = B.useOnset && !ring ? Math.min(smp.o || 0, src.loop ? smp.loop[0] : buf.duration / 2) : 0;
       const g = ctx.createGain();
       const lvl = (0.03 + 0.97 * Math.pow(v, 1.9)) * (k ? 0.55 : 1) * gain;
       const lvl2 = (0.03 + 0.97 * Math.pow(v2, 1.9)) * (k ? 0.55 : 1) * gain;
@@ -386,14 +389,14 @@ export class Orchestra {
       if (ring && ev.a !== 'roll' && ev.a !== 'swell') {
         end = t0 + buf.duration / rate;
       } else {
-        const hold = sustained ? dur : Math.min(dur + 0.15, buf.duration / rate);
+        const hold = sustained ? dur : Math.min(dur + 0.15, (buf.duration - off) / rate);
         g.gain.setValueAtTime(ev.v2 != null ? lvl2 : lvl, t0 + Math.max(attack, hold));
         g.gain.setTargetAtTime(0, t0 + Math.max(attack, hold), rel / 3);
         end = t0 + Math.max(attack, hold) + rel * 2.5;
-        if (!src.loop) end = Math.min(end, t0 + buf.duration / rate);
+        if (!src.loop) end = Math.min(end, t0 + (buf.duration - off) / rate);
       }
       src.connect(g).connect(pl.input);
-      src.start(t0);
+      src.start(t0, off);
       src.stop(end + 0.02);
       const node = { src, g };
       this.active.add(node);

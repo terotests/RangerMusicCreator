@@ -61,6 +61,7 @@ export const SPACE_BAND = {
   synth: { vib: V.vib, org: V.organ, thr: V.theremin, ufo: V.ufo, bird: V.bird, hh: hihat },
   fx: { thr: V.tempoDelay(1, 0.32, 0.22), vib: V.tempoDelay(1.5, 0.2, 0.12), org: V.chorus(0.002, 0.35) },
   ensemble: ['strings'],
+  useOnset: true,
   release: { strings: 0.45, brass: 0.2, keys: 0.25, space: 0.3, rhythm: 0.1 },
   shortRelease: { keys: 0.2, brass: 0.09, strings: 0.15 },
   seats: {
@@ -139,7 +140,7 @@ export const SYNTH_BAND = {
     kick: { pan: 0, depth: 0, gain: 0.72 },
     snare: { pan: 0.04, depth: 0.1, gain: 0.9 },
     clap: { pan: -0.06, depth: 0.1, gain: 0.8 },
-    hat: { pan: 0.3, depth: 0.1, gain: 0.55 },
+    hat: { pan: 0.3, depth: 0.15, gain: 0.38 },
     crash: { pan: -0.3, depth: 0.15, gain: 0.6 },
     etom: { pan: -0.2, depth: 0.1, gain: 0.8 },
     sweep: { pan: 0, depth: 0.2, gain: 0.6 },

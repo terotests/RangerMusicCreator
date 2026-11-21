@@ -250,26 +250,26 @@ function bandPart(w, ctx) {
     for (let k = 0; k < mel.length; k++) {
       const n = mel[k];
       const art = S.mute ? 'mute' : n.d * spb < 0.2 ? 'stac' : 'sus';
-      w.add('tp', art, n.b, Math.max(0.1, n.d * 0.92), n.m + s, vel + 0.08);
+      w.add('tp', art, n.b, Math.max(0.1, n.d * 0.92), n.m + s, vel - 0.02);
     }
   }
   // Clarinet: runs over the chords, above the tune.
-  if ((S.hot || e > 0.62) && !S.mute && lead !== 'xyl') {
-    const step = S.hot && e > 0.7 ? 0.25 : 0.5;
+  if (((S.hot && e > 0.55) || e > 0.72) && !S.mute && lead !== 'xyl') {
+    const step = S.hot && e > 0.85 ? 0.25 : 0.5;
     const up = pos % 2 === 0;
     for (let b = 0; b < 2 - 1e-6; b += step) {
       const ps = chordPcs(key, chordAt(chords, b));
-      state.cl = state.cl ?? 79;
+      state.cl = state.cl ?? 76;
       let m = snap(state.cl + (up ? 2 : -2), ps, up ? 1 : -1);
-      if (m > 91) m -= 12;
-      if (m < 72) m += 12;
+      if (m > 86) m -= 12;
+      if (m < 70) m += 12;
       state.cl = m;
-      w.add('cl', step < 0.5 ? 'stac' : 'sus', b, step * 0.95, m, vel - 0.14 + (b % 1 === 0 ? 0.05 : 0));
+      w.add('cl', 'sus', b, step * 0.95, m, vel - 0.24 + (b % 1 === 0 ? 0.05 : 0));
     }
-    if (pos === len - 1) for (let j = 0; j < 4; j++) w.add('cl', 'stac', 1 + j * 0.25, 0.24, snap(86 - j * 3, chordPcs(key, chordAt(chords, 1)), -1), vel - 0.1);
+    if (pos === len - 1) for (let j = 0; j < 4; j++) w.add('cl', 'stac', 1 + j * 0.25, 0.24, snap(82 - j * 3, chordPcs(key, chordAt(chords, 1)), -1), vel - 0.1);
   }
   // Trombone: tailgate guide tones that slide by step, and a fall into each new strain.
-  if (e > 0.45 || S.hot) {
+  if (e > 0.55 || S.hot) {
     for (const c of chords) {
       const ps = chordPcs(key, c);
       const guide = [ps[1], ps[3] ?? ps[2]];
@@ -277,7 +277,7 @@ function bandPart(w, ctx) {
       state.tb = clamp(state.tb, 46, 62);
       const d = (chords.length > 1 ? 1 : 2) * 0.95;
       if (pos === len - 1 && c.at >= 1 - 1e-6 && S.hot) w.add('tb', 'fall', c.at, 1, state.tb + 5, vel);
-      else w.add('tb', S.hot ? 'vib' : 'sus', c.at, d, state.tb, vel - 0.12);
+      else w.add('tb', S.hot ? 'vib' : 'sus', c.at, d, state.tb, vel - 0.2);
     }
     if (pos === len - 1 && chords.length === 1 && S.hot) w.add('tb', 'fall', 1, 1, (state.tb ?? 55) + 5, vel);
   }
@@ -478,7 +478,7 @@ export class RagComposer {
       w.add('cym', 'crash', 0, 2, null, 0.75);
       w.add('bd', 'hit', 0, 1, null, 0.7);
     }
-    let events = w.events;
+    let events = band ? avoidClashes(w.events) : w.events;
     if (S.swing) events = swingEvents(events, S.swing, 0.5);
     this.bar++;
     const ch = chords[0];
@@ -489,6 +489,45 @@ export class RagComposer {
       info: { section: sec.kind, repeat: !!sec.repeat, pos: sec.pos, len: sec.len, bar: this.bar, chord: sec.score ? '' : chordName(key, ch), key: sec.score ? '' : NAMES[key], name: tune.name, band, e },
     };
   }
+}
+
+// The band's harmony notes must not rub a semitone against what the piano
+// is playing at the same time (chords read from a score are only a guess).
+// A clarinet or trombone note that would is moved to the nearest note that
+// fits, preferring notes the piano has; a long one is cut where a clash starts.
+const HARMONY = new Set(['cl', 'tb']);
+const rub = (a, b) => {
+  const iv = (((a - b) % 12) + 12) % 12;
+  return iv === 1 || iv === 11;
+};
+export function avoidClashes(events) {
+  const pno = events.filter((e) => e.i === 'pno');
+  const out = [];
+  for (const e of events) {
+    if (!HARMONY.has(e.i) || e.m == null) {
+      out.push(e);
+      continue;
+    }
+    const over = (t0, t1) => pno.filter((p) => p.b < t1 - 0.01 && p.b + p.d > t0 + 0.01);
+    const head = over(e.b, e.b + Math.min(e.d, 0.5));
+    const [lo, hi] = RANGE[e.i];
+    const fits = (m) => m >= lo && m <= hi && !head.some((p) => rub(m, p.m));
+    let m = e.m;
+    if (!fits(m)) {
+      const have = new Set(head.map((p) => ((p.m % 12) + 12) % 12));
+      let best = null;
+      for (let k = 1; k <= 4 && best == null; k++) {
+        for (const c of [m - k, m + k]) if (fits(c) && have.has(((c % 12) + 12) % 12)) best ??= c;
+      }
+      for (let k = 1; k <= 2 && best == null; k++) for (const c of [m - k, m + k]) if (fits(c)) best ??= c;
+      if (best == null) continue;
+      m = best;
+    }
+    let d = e.d;
+    for (const p of over(e.b, e.b + e.d)) if (p.b > e.b + 0.4 && rub(m, p.m)) d = Math.min(d, p.b - e.b);
+    out.push({ ...e, m, d });
+  }
+  return out;
 }
 
 function transpose(ch, from, to) {

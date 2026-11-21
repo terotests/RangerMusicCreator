@@ -114,6 +114,19 @@ Public-domain pieces:
 | GREENSLEEVES | Traditional English, 16th century | Written out by ear in `src/retro/space.js` | Traditional |
 | IN THE HALL OF THE MOUNTAIN KING | Edvard Grieg, Peer Gynt (1875) | The theme written out by ear in `src/retro/synthwave.js` | Composer died 1907 |
 | TOCCATA IN D MINOR | BWV 565, attributed to J. S. Bach | The opening written out by ear in `src/retro/synthwave.js`; the rest of the track is generated | Composer died 1750 |
+| ODE TO JOY (remix theme) | Ludwig van Beethoven, Symphony No. 9 (1824) | 8 bars written out by ear in `src/retro/themes.js`, remixed by `src/retro/composer.js` | Composer died 1827 |
+| NEW WORLD LARGO (remix theme) | Antonín Dvořák, Symphony No. 9, Largo (1893) | 8 bars written out by ear in `src/retro/themes.js`, remixed by `src/retro/composer.js` | Composer died 1904 |
+| MORNING MOOD (remix theme) | Edvard Grieg, Peer Gynt (1875) | 8 bars written out by ear in `src/retro/themes.js`, remixed by `src/retro/composer.js` | Composer died 1907 |
+| CANON IN D (remix theme) | Johann Pachelbel, Canon in D (c. 1680) | 8 bars written out by ear in `src/retro/themes.js`, remixed by `src/retro/composer.js` | Composer died 1706 |
+| EINE KLEINE NACHTMUSIK (remix theme) | Wolfgang Amadeus Mozart, Serenade K. 525 (1787) | 8 bars written out by ear in `src/retro/themes.js`, remixed by `src/retro/composer.js` | Composer died 1791 |
+| SWAN LAKE (remix theme) | Pyotr Ilyich Tchaikovsky, Swan Lake (1876) | 8 bars written out by ear in `src/retro/themes.js`, remixed by `src/retro/composer.js` | Composer died 1893 |
+| MOUNTAIN KING (remix theme) | Edvard Grieg, Peer Gynt (1875) | 8 bars written out by ear in `src/retro/themes.js`, remixed by `src/retro/composer.js` | Composer died 1907 |
+| SYMPHONY NO. 40 (remix theme) | Wolfgang Amadeus Mozart, Symphony No. 40 (1788) | 8 bars written out by ear in `src/retro/themes.js`, remixed by `src/retro/composer.js` | Composer died 1791 |
+| SAKURA (remix theme) | Sakura Sakura, traditional Japanese | 8 bars written out by ear in `src/retro/themes.js`, remixed by `src/retro/composer.js` | Traditional (Edo period) |
+| GREENSLEEVES (remix theme) | Traditional English, 16th century | 8 bars written out by ear in `src/retro/themes.js`, remixed by `src/retro/composer.js` | Traditional |
+| MINUET IN G (remix theme) | Christian Petzold, Minuet in G (1725), long attributed to J. S. Bach | 8 bars written out by ear in `src/retro/themes.js`, remixed by `src/retro/composer.js` | Composer died 1733 |
+| AMAZING GRACE (remix theme) | Amazing Grace, hymn tune "New Britain" (1829) | 8 bars written out by ear in `src/retro/themes.js`, remixed by `src/retro/composer.js` | Tune published 1829; traditional words not used |
+| SCARBOROUGH FAIR (remix theme) | Scarborough Fair, traditional English | 8 bars written out by ear in `src/retro/themes.js`, remixed by `src/retro/composer.js` | Traditional |
 
 Left out on purpose: the space-age and 1980s hits themselves (Les Baxter,
 Martin Denny, Esquivel, film and TV themes, synth-pop records) are still

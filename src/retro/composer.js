@@ -14,6 +14,8 @@
 import { Rng } from '../rng.js';
 import { bars as chordBars, pcs as chordPcs, fourPcs, chordAt, scalePcs, snap, fit, NAMES, swingEvents } from '../jazz/theory.js';
 import { chordName } from '../jazz/ragtime.js';
+import { THEMES } from './themes.js';
+import { tune } from './tunes.js';
 
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const pc = (m) => ((m % 12) + 12) % 12;
@@ -77,7 +79,10 @@ export const CELLS = {
 function chordTones(key, ch, S) {
   if (S.harmony === 'triad') {
     const t = chordPcs(key, ch).slice(0, 3);
-    return S.add9 ? [...t, (key + ch.r + 2) % 12] : t;
+    // The added ninth only where it belongs to the key (not on iii, or on V in minor).
+    const ninth = (key + ch.r + 2) % 12;
+    const sc = (S.isMinor ? [0, 2, 3, 5, 7, 8, 10] : [0, 2, 4, 5, 7, 9, 11]).map((x) => (key + x) % 12);
+    return S.add9 && sc.includes(ninth) ? [...t, ninth] : t;
   }
   return fourPcs(key, ch);
 }
@@ -124,74 +129,123 @@ function scaleStep(m, steps, scale) {
 
 const strongBeat = (b, beats) => Math.abs(b - Math.round(b)) < 1e-6 && (Math.round(b) % 2 === 0 || beats === 3);
 
-// A fresh bar of melody over `chords`, starting near `prev`.
-function freshBar(rng, cell, chords, key, scale, S, prev, lo, hi, dirHint) {
-  const out = [];
-  let m = prev;
-  let dir = dirHint || (rng.chance(0.5) ? 1 : -1);
-  cell.forEach(([b, d], k) => {
-    const ch = chordAt(chords, b);
-    const tones = chordTones(key, ch, S);
-    if (m > hi - 3) dir = -1;
-    else if (m < lo + 3) dir = 1;
-    else if (rng.chance(0.25)) dir = -dir;
-    if (k === 0 || strongBeat(b, S.beats) || d >= 1.5) {
-      const leap = rng.chance(k === 0 ? 0.35 : 0.15) ? rng.int(3, 7) : rng.int(1, 3);
-      m = snap(m + dir * leap, tones, dir);
-    } else {
-      m = scaleStep(m, dir * (rng.chance(0.75) ? 1 : 2), scale);
+// Pitch classes a melody may use over a chord: its chord tones on strong or
+// long notes; on short weak notes, the key's scale notes that also fit the
+// chord (so a minor key's flat seventh is not played over a major V).
+function notesFor(key, ch, S, keyScale) {
+  const tones = chordTones(key, ch, S);
+  const cs = scalePcs(key, ch);
+  const passing = keyScale.filter((p) => cs.includes(p));
+  return { tones, passing: [...new Set([...passing, ...tones])] };
+}
+
+const isAnchor = (b, d, k, beats) => k === 0 || d >= 1 || Math.abs(b - Math.round(b)) < 1e-6 && (Math.round(b) % 2 === 0 || beats === 3);
+
+// Nearest pitch with a pitch class in `ps` (ties go up).
+function nearest(m, ps) {
+  for (let k = 0; k < 12; k++) {
+    if (isIn(m + k, ps)) return m + k;
+    if (isIn(m - k, ps)) return m - k;
+  }
+  return m;
+}
+
+// One bar of tune on `rhythm`: chord tones on the strong and long notes,
+// moving mostly by step towards `goal`, and stepwise passing or neighbour
+// notes between them. `fixed` keeps given pitches where they still fit.
+function lineBar(rng, rhythm, chords, key, S, keyScale, prev, lo, hi, goal, fixed = null) {
+  const out = rhythm.map(([b, d], k) => ({ b, d, m: null, anchor: isAnchor(b, d, k, S.beats) }));
+  let last = prev;
+  const n = out.length;
+  // Strong notes first.
+  out.forEach((x, k) => {
+    if (!x.anchor) return;
+    const { tones } = notesFor(key, chordAt(chords, x.b), S, keyScale);
+    if (fixed?.[k] != null) {
+      x.m = clamp(nearest(fixed[k], tones), lo, hi);
+      if (!isIn(x.m, tones)) x.m = nearest(clamp(fixed[k], lo + 2, hi - 2), tones);
+      last = x.m;
+      return;
     }
-    m = clamp(m, lo, hi);
-    if (!isIn(m, scale) && !isIn(m, tones)) m = snap(m, tones, dir);
-    out.push({ b, d, m });
+    const want = last + (goal - last) * Math.min(1, (k + 1) / n);
+    let best = null;
+    let bestScore = Infinity;
+    for (let m = Math.max(lo, last - 9); m <= Math.min(hi, last + 9); m++) {
+      if (!isIn(m, tones)) continue;
+      const step = Math.abs(m - last);
+      let sc = step * 0.55 + Math.abs(m - want) * 0.6 + rng.next() * 1.6;
+      if (step === 0) sc += 1.2;
+      if (step > 7) sc += 3;
+      if (sc < bestScore) [best, bestScore] = [m, sc];
+    }
+    x.m = best ?? clamp(nearest(last, tones), lo, hi);
+    last = x.m;
   });
-  return out;
+  // Then the weak notes, stepping from the note before towards the next strong one.
+  let before = prev;
+  out.forEach((x, k) => {
+    if (x.m != null) {
+      before = x.m;
+      return;
+    }
+    const { passing } = notesFor(key, chordAt(chords, x.b), S, keyScale);
+    if (fixed?.[k] != null && isIn(fixed[k], passing)) {
+      x.m = clamp(fixed[k], lo, hi);
+      before = x.m;
+      return;
+    }
+    const next = out.slice(k + 1).find((y) => y.m != null)?.m ?? goal;
+    let dir = Math.sign(next - before);
+    if (!dir) dir = rng.chance(0.5) ? 1 : -1;
+    let m = scaleStep(before, dir, passing);
+    if (m === next && Math.abs(next - before) > 2) m = scaleStep(m, -dir, passing);
+    x.m = clamp(m, lo, hi);
+    before = x.m;
+  });
+  return out.map(({ b, d, m }) => ({ b, d, m }));
 }
 
-// The same rhythm and shape moved onto new chords (a sequence).
-function moveBar(src, chords, key, scale, S, lo, hi) {
-  if (!src.length) return [];
-  const ch0 = chordAt(chords, src[0].b);
-  const t0 = chordTones(key, ch0, S);
-  const first = snap(src[0].m, t0, 1);
-  const shift = first - src[0].m;
-  return src.map((n) => {
-    const ch = chordAt(chords, n.b);
-    const tones = chordTones(key, ch, S);
-    let m = n.m + shift;
-    m = strongBeat(n.b, S.beats) || n.d >= 1.5 ? snap(m, tones, 1) : snap(m, scale, 1);
-    return { b: n.b, d: n.d, m: clamp(m, lo, hi) };
-  });
-}
-
-// An 8-bar (or any length) tune: a two-bar idea, its sequence, the idea
-// again, and a cadence that lands on the chord's root or third.
-export function writeMelody(rng, S, key, minor, bars, kind, lo, hi) {
+// An 8-bar tune, the way pop and lounge tunes are built: a two-bar idea,
+// the same rhythm answered higher, the idea again (refitted to its chords),
+// a rising bar and a cadence on the root. B (the chorus or bridge) sits in
+// the same register as A and comes down, so it does not strain upwards.
+export function writeMelody(rng, S, key, minor, bars, kind, lo, hi, around = null, rhythms = null) {
   const cells = CELLS[S.cells] || CELLS.lounge;
-  const pool = kind === 'B' ? [...cells.long, ...cells.main.slice(0, 2)] : cells.main;
-  const scale = scaleOf(key, S, minor);
+  const pool = kind === 'B' ? [...cells.long, ...cells.main.slice(0, 3)] : cells.main;
+  const keyScale = scaleOf(key, S, minor);
   const n = bars.length;
-  const c0 = rng.pick(pool);
-  const c1 = rng.pick(pool);
-  const c2 = rng.pick(pool);
-  const cEnd = rng.pick(cells.end);
-  const center = Math.round((lo + hi) / 2) + (kind === 'B' ? 2 : 0);
-  let prev = snap(center, chordTones(key, bars[0][0], S), 1);
+  const c0 = rhythms?.[0] || rng.pick(pool);
+  const c1 = rhythms?.[1] || rng.pick(pool);
+  const c2 = rhythms?.[2] || rng.pick(pool);
+  const cEnd = rhythms?.[3] || rng.pick(cells.end);
+  const span = hi - lo;
+  const center = around ?? Math.round(lo + span * 0.42);
+  // Where each bar of the phrase heads, relative to the centre.
+  const shape = kind === 'B' ? [1, 0, 2, -1, 1, -1, 0, -3] : [0, 2, 2, 4, 0, 2, 5, -1];
+  let prev = nearest(center + (kind === 'B' ? 1 : 0), chordTones(key, bars[0][0], S));
   const out = [];
   for (let i = 0; i < n; i++) {
-    const inPhrase = i % 8;
-    const last = i === n - 1 || inPhrase === 7;
+    const ph = i % 8;
+    const goal = clamp(center + shape[ph], lo + 2, hi - 3);
     let notes;
-    if (last) {
-      // Land on a chord tone, the root if the chord is the tonic.
-      const ch = bars[i][0];
-      const tones = ch.r === 0 ? [(key + ch.r) % 12, (key + ch.r + (minor ? 3 : 4)) % 12] : chordTones(key, ch, S);
-      notes = cEnd.map(([b, d], k) => ({ b, d, m: clamp(snap(prev + (k ? -2 : 0), tones, -1), lo, hi) }));
-    } else if (inPhrase === 2 || inPhrase === 3) notes = moveBar(out[i - 2], bars[i], key, scale, S, lo, hi);
-    else if (inPhrase === 4 || inPhrase === 5) notes = rng.chance(0.7) ? moveBar(out[i - 4], bars[i], key, scale, S, lo, hi) : freshBar(rng, [c0, c1][inPhrase - 4], bars[i], key, scale, S, prev, lo, hi);
-    else {
-      const cell = inPhrase === 0 ? c0 : inPhrase === 1 ? c1 : c2;
-      notes = freshBar(rng, cell, bars[i], key, scale, S, prev, lo, hi, inPhrase === 6 ? -1 : 0);
+    if (ph === 7 || i === n - 1) {
+      let m = prev + 1;
+      notes = cEnd.map(([b, d], k) => {
+        const ch = chordAt(bars[i], b);
+        const root = (key + ch.r) % 12;
+        const tones = ch.r === 0 ? [root, (root + (minor ? 3 : 4)) % 12] : chordTones(key, ch, S);
+        if (k === cEnd.length - 1 && ch.r === 0) m = nearest(m - 1, [root]);
+        else m = nearest(m - 2, tones);
+        if (m < lo) m += 12;
+        if (m > hi) m -= 12;
+        return { b, d, m };
+      });
+    } else if (ph === 4 || ph === 5) {
+      const src = out[i - 4];
+      notes = lineBar(rng, src.map((x) => [x.b, x.d]), bars[i], key, S, keyScale, prev, lo, hi, goal, src.map((x) => x.m));
+    } else {
+      const cell = ph === 0 || ph === 2 ? c0 : ph === 1 || ph === 3 ? c1 : c2;
+      notes = lineBar(rng, cell, bars[i], key, S, keyScale, prev, lo, hi, goal);
     }
     out.push(notes);
     if (notes.length) prev = notes[notes.length - 1].m;
@@ -199,27 +253,39 @@ export function writeMelody(rng, S, key, minor, bars, kind, lo, hi) {
   return out;
 }
 
-// Improvised line for a solo bar: chord-scale runs, denser as the energy rises.
-function improviseBar(rng, S, key, minor, chords, lo, hi, prev, energy) {
-  const beats = S.beats;
+// A solo bar built on the tune: the A melody's strong notes kept as a
+// skeleton, with runs filled in between them as the energy rises.
+function soloBar(rng, S, key, minor, chords, lo, hi, theme, prev, energy) {
+  const keyScale = scaleOf(key, S, minor);
   const unit = S.soloUnit || 0.5;
+  const beats = S.beats;
+  const shift = theme.length ? Math.round((prev - theme[0].m) / 12) * 12 : 0;
+  const skel = theme.map((x) => ({ ...x, m: clamp(x.m + shift, lo, hi) }));
   const out = [];
-  let m = prev;
-  let dir = rng.chance(0.5) ? 1 : -1;
-  for (let b = 0; b < beats - 1e-6; b += unit) {
-    if (rng.chance(0.28 - energy * 0.18)) continue;
-    const ch = chordAt(chords, b);
-    const scale = scalePcs(key, ch);
-    const tones = chordTones(key, ch, S);
-    if (m > hi - 2) dir = -1;
-    else if (m < lo + 2) dir = 1;
-    else if (rng.chance(0.2)) dir = -dir;
-    m = Math.abs(b - Math.round(b)) < 1e-6 ? snap(scaleStep(m, dir, scale), tones, dir) : scaleStep(m, dir * (rng.chance(0.8) ? 1 : 2), scale);
-    m = clamp(m, lo, hi);
-    const long = rng.chance(0.15);
-    out.push({ b, d: long ? Math.min(beats - b, unit * 3) : unit, m });
-    if (long) b += unit * 2;
-  }
+  const busy = energy > 0.6 ? unit : unit * 2;
+  skel.forEach((x, k) => {
+    const end = skel[k + 1]?.b ?? beats;
+    const room = end - x.b;
+    const { tones } = notesFor(key, chordAt(chords, x.b), S, keyScale);
+    const m0 = nearest(x.m, tones);
+    if (room < busy * 2 || rng.chance(0.3)) {
+      out.push({ b: x.b, d: Math.min(x.d, room), m: m0 });
+      return;
+    }
+    // Hold the note, then run by step to the next skeleton note.
+    const target = skel[k + 1]?.m ?? m0 + (rng.chance(0.5) ? 2 : -2);
+    const runN = Math.min(Math.floor(room / busy) - 1, 6);
+    const start = end - runN * busy;
+    out.push({ b: x.b, d: start - x.b, m: m0 });
+    let m = m0;
+    const dir = Math.sign(target - m) || (rng.chance(0.5) ? 1 : -1);
+    for (let j = 0; j < runN; j++) {
+      const b = start + j * busy;
+      const { passing } = notesFor(key, chordAt(chords, b), S, keyScale);
+      m = clamp(scaleStep(m, dir, passing), lo, hi);
+      out.push({ b, d: busy * 0.95, m });
+    }
+  });
   return out;
 }
 
@@ -400,7 +466,7 @@ function brassPart(c, spec) {
     if (b >= c.beats || !c.rng.chance(spec.p ?? 0.8)) continue;
     const ch = chordAt(c.chords, b);
     const tones = chordTones(c.key, ch, c.S);
-    const v = voice(tones, 64, c.state.brass, 4);
+    const v = voice(tones, spec.center ?? 64, c.state.brass, 4);
     c.state.brass = v;
     v.forEach((m, k) => out.push({ i: k >= 2 ? spec.top : spec.low, a: spec.a || 'stac', b, d, m, v: c.vel(0.66) }));
   }
@@ -441,10 +507,16 @@ export const DRUMS = {
   dark: { kick: grid('x.....x...x.....', 0.95), snare: grid('........x.......', 0.95), hat: grid('xxxxxxxxxxxxxxxx', 0.32) },
   dream: { kick: grid('x.........x.....', 0.75), snare: grid('....x.......x...', 0.65), hat: grid('x.x.x.x.x.x.x.x.', 0.3), clap: grid('............x...', 0.4) },
   drive: { kick: grid('x......x..x.....', 0.85), snare: grid('....x.......x...', 0.8), hat: grid('x.xxx.xxx.xxx.xx', 0.38) },
+  // Second grooves for the B sections and solos, so the beat changes with the song.
+  outrunB: { kick: grid('x...x...x...x...', 0.85), snare: grid('....x.......x...', 0.8), hat: grid('..o...o...o...o.', 0.4) },
+  italoB: { kick: grid('x...x...x...x...', 0.85), clap: grid('....x.......x...', 0.7), hat: grid('x.o.x.o.x.o.x.o.', 0.36) },
+  darkB: { kick: grid('x.x...x.x.x.....', 0.9), snare: grid('....x.......x...', 0.85), hat: grid('..x...x...x...x.', 0.34) },
+  dreamB: { kick: grid('x.....x...x.....', 0.75), snare: grid('....x.......x...', 0.65), hat: grid('x.xxx.xxx.xxx.xx', 0.26), clap: grid('....x.......x...', 0.3) },
+  driveB: { kick: grid('x...x...x...x...', 0.85), snare: grid('....x.......x...', 0.8), hat: grid('..o...o...o...o.', 0.4) },
 };
 
 function drumPart(c, name) {
-  const g = DRUMS[name];
+  const g = (c.section === 'B' || c.section === 'solo') && DRUMS[name + 'B'] ? DRUMS[name + 'B'] : DRUMS[name];
   const out = [];
   const e = c.energy;
   for (const [p, hits] of Object.entries(g)) {
@@ -452,12 +524,21 @@ function drumPart(c, name) {
     for (const [b, v, a] of hits) {
       if (b >= c.beats) continue;
       // Light parts drop out when it is quiet.
-      if (e < 0.3 && (p === 'mrc' || p === 'hat' || p === 'bgh') && Math.abs(b - Math.round(b)) > 1e-6) continue;
-      out.push({ i: p, a: a || 'hit', b, d: a === 'open' ? 0.5 : 0.25, v: clamp(v * (0.75 + 0.4 * e) * (0.92 + c.rng.next() * 0.16), 0.05, 1) });
+      const off = Math.abs(b - Math.round(b)) > 1e-6;
+      const sixteenth = Math.abs(b * 2 - Math.round(b * 2)) > 1e-6;
+      if (e < 0.3 && (p === 'mrc' || p === 'hat' || p === 'bgh') && off) continue;
+      // Hats: sixteenths only once the song builds, and accented like a
+      // drummer's hand (beat, offbeat, then the soft in-between notes).
+      let acc = 1;
+      if (p === 'hat') {
+        if (sixteenth && e < 0.55) continue;
+        acc = sixteenth ? 0.55 : off ? 0.8 : 1;
+      }
+      out.push({ i: p, a: a || 'hit', b, d: a === 'open' ? 0.5 : 0.25, v: clamp(v * acc * (0.75 + 0.4 * e) * (0.92 + c.rng.next() * 0.16), 0.05, 1) });
     }
   }
   // Busier hats at high energy.
-  if (g.hat && e > 0.75 && name !== 'dark' && name !== 'italo') for (let b = 0.25; b < c.beats; b += 0.5) out.push({ i: 'hat', a: 'hit', b, d: 0.2, v: 0.22 });
+  if (g.hat && e > 0.75 && name !== 'dark' && name !== 'italo') for (let b = 0.25; b < c.beats; b += 0.5) out.push({ i: 'hat', a: 'hit', b, d: 0.2, v: 0.15 });
   return out;
 }
 
@@ -512,30 +593,42 @@ export class RetroComposer {
     const rng = this.rng;
     const P = this.piece;
     const S = this.styles[P ? P.style : this.styleId];
-    const minor = P ? !!P.minor : rng.chance(S.minor ?? 0);
-    const key = P ? P.key : rng.pick(S.keys);
+    const wantMinor = P ? !!P.minor : rng.chance(S.minor ?? 0);
     const beats = P?.beats || S.beats || 4;
-    const SS = { ...S, beats };
+    // Style songs are remixes of a public-domain theme.
+    const theme = P || S.remix === false ? null : pickTheme(rng, beats, wantMinor);
+    const minor = theme ? theme.minor : wantMinor;
+    const key = P ? P.key : rng.pick(S.keys);
+    const SS = { ...S, beats, isMinor: minor };
     const lead = this.players.range[S.lead.A[0]] || [60, 84];
     const lo = Math.max(lead[0], S.melodyLo ?? 64);
     const hi = Math.min(lead[1], S.melodyHi ?? 84);
     const progs = minor ? S.minorProgs || S.progs : S.progs;
     const sec = {};
+    let around = null;
     for (const k of ['A', 'B']) {
       if (P?.sections?.[k]) {
         const ps = P.sections[k];
         sec[k] = { chords: chordBars(ps.chords, beats), melody: ps.melody };
+      } else if (theme && k === 'A') {
+        sec[k] = { chords: chordBars(theme.chords, beats), melody: remixTheme(rng, theme, SS, key, lo, hi) };
       } else {
         const chords = chordBars(rng.pick(progs[k]), beats);
-        sec[k] = { chords, melody: writeMelody(rng, SS, key, minor, chords, k, lo, hi) };
+        // A remix's B is written from the theme's own rhythms.
+        const rh = theme ? [0, 1, 2, 7].map((j) => sec.A.melody[j].map((x) => [x.b, x.d])).map((r) => (r.length ? r : null)) : null;
+        sec[k] = { chords, melody: writeMelody(rng, SS, key, minor, chords, k, lo, hi, around, rh) };
       }
+      // The chorus is centred on the verse's own register.
+      const ms = sec[k].melody.flat().map((x) => x.m);
+      if (k === 'A' && ms.length) around = Math.round(ms.reduce((x, y) => x + y, 0) / ms.length);
     }
     const intro = P?.intro ? chordBars(P.intro, beats) : chordBars(rng.pick(progs.intro || [progs.A[0].split(/\s+/).slice(0, 2).join(' ')]), beats);
     const bpm = P?.bpm || rng.int(S.bpm[0], S.bpm[1]);
     const form = P?.form || S.form || ['intro', 'A', 'A', 'B', 'A', 'solo', 'B', 'A2', 'outro'];
     this.song = {
       S: SS, key, minor, bpm, sec, intro, form,
-      name: P ? P.name : songName(rng, S.names),
+      name: P ? P.name : theme ? `${theme.name} (${songName(rng, S.names)} mix)` : songName(rng, S.names),
+      theme: theme ? { id: theme.id, name: theme.name, source: theme.source } : null,
       soloist: rng.pick(S.lead.solo || S.lead.A),
       lift: P ? P.lift ?? 0 : S.lift ? rng.pick(S.lift) : 0,
       accel: P?.accel ?? 1,
@@ -645,7 +738,8 @@ export class RetroComposer {
     } else if (step.section === 'solo') {
       const r = this.players.range[song.soloist] || [60, 84];
       const prev = this.state.solo ?? Math.round((r[0] + r[1]) / 2);
-      const line = improviseBar(rng, S, key, song.minor, chords, Math.max(r[0], 58), Math.min(r[1], 88), prev, energy);
+      const theme = song.sec.A.melody[step.i % song.sec.A.melody.length] || [];
+      const line = soloBar(rng, S, key, song.minor, chords, Math.max(r[0], 58), Math.min(r[1], 88), theme, prev, energy);
       if (line.length) this.state.solo = line[line.length - 1].m;
       add(this.leadEvents(song.soloist, line, c, 0, 0.66));
     }
@@ -694,14 +788,16 @@ export class RetroComposer {
       let m = n.m + shift;
       if (r) m = fit(m, r[0], r[1]);
       const prev = notes[k - 1];
-      out.push({ i: p, a: art, b: n.b, d: n.d, m, v: c.vel(vel + (n.d >= 1.5 ? 0.05 : 0)), glide: !!prev && Math.abs(prev.b + prev.d - n.b) < 0.01 });
+      out.push({ i: p, a: art, b: n.b, d: n.d, m, v: c.vel(vel + (n.d >= 1.5 ? 0.05 : 0)), glide: !!prev && Math.abs(prev.b + prev.d - n.b) < 0.01, lead: true });
     });
     return out;
   }
 
-  // Ranges, swing, and nothing past the bar line.
+  // Ranges, swing, nothing past the bar line, and no accompaniment note a
+  // semitone from a held tune note.
   finish(events, c) {
     const out = [];
+    this.clearLead(events, c);
     for (const e of events) {
       if (e.m != null && this.players.range[e.i]) {
         const [lo, hi] = this.players.range[e.i];
@@ -714,8 +810,32 @@ export class RetroComposer {
       out.push(e);
     }
     if (c.S.swing && c.S.swing > 0.5) swingEvents(out, c.S.swing, 1);
-    for (const e of out) if (!e.glide) delete e.glide;
+    for (const e of out) {
+      if (!e.glide) delete e.glide;
+      delete e.lead;
+    }
     return out;
+  }
+
+  // Keys, pads and arpeggios move off a note that rubs a semitone against the
+  // tune (a major seventh under the melody's root, say) to the nearest triad
+  // note that does not.
+  clearLead(events, c) {
+    const lead = events.filter((e) => e.lead && e.d >= 0.5);
+    if (!lead.length) return;
+    const DRUMS = this.players.sectionOf;
+    for (const e of events) {
+      if (e.lead || e.m == null || e.m < 52) continue;
+      const sec = DRUMS[e.i];
+      if (sec === 'drums' || sec === 'rhythm' || sec === 'bass') continue;
+      const over = lead.filter((l) => l.b < e.b + Math.min(e.d, 1) - 0.05 && l.b + l.d > e.b + 0.05);
+      const rubs = (m) => over.some((l) => [1, 11].includes(pc(l.m - m)));
+      if (!rubs(e.m)) continue;
+      const triad = chordPcs(c.key, chordAt(c.chords, e.b)).slice(0, 3);
+      let best = null;
+      for (let k = 1; k <= 5 && best == null; k++) for (const m of [e.m - k, e.m + k]) if (best == null && isIn(m, triad) && !rubs(m)) best = m;
+      if (best != null) e.m = best;
+    }
   }
 
   endBar() {
@@ -747,6 +867,46 @@ export class RetroComposer {
     this.barNo++;
     return { beats: this.song.S.beats, bpm: 100, events: [], info: { section: 'rest', name: this.song.name, bar: this.barNo } };
   }
+}
+
+// ---- remixes ------------------------------------------------------------------
+
+// A theme in the wanted mode and metre (any mode when none fits).
+function pickTheme(rng, beats, minor) {
+  const fit = THEMES.filter((t) => t.beats === beats);
+  if (!fit.length) return null;
+  const same = fit.filter((t) => t.minor === minor);
+  return rng.pick(same.length ? same : fit);
+}
+
+// The theme moved to the song's key and the octave that sits best in the
+// lead's range, with the style's rhythm feel: synth styles push some notes
+// an eighth ahead of the beat, as synth-pop does.
+function remixTheme(rng, theme, S, key, lo, hi) {
+  const base = (((key - theme.key) % 12) + 12) % 12;
+  const want = lo + (hi - lo) * 0.42;
+  let best = null;
+  let bestScore = Infinity;
+  for (const oct of [-24, -12, 0, 12, 24]) {
+    const mel = tune(theme.melody, base + oct);
+    const ms = mel.flat().map((x) => x.m);
+    const mean = ms.reduce((a, b) => a + b, 0) / ms.length;
+    const out = ms.filter((m) => m < lo - 2 || m > hi).length;
+    const score = Math.abs(mean - want) + out * 4;
+    if (score < bestScore) [best, bestScore] = [mel, score];
+  }
+  if (S.cells === 'synth') {
+    for (const bar of best) for (let k = 1; k < bar.length; k++) {
+      const p = bar[k - 1];
+      const n = bar[k];
+      if (n.b >= 1 && Number.isInteger(n.b) && p.d >= 1 && Math.abs(p.b + p.d - n.b) < 1e-6 && rng.chance(0.4)) {
+        p.d -= 0.5;
+        n.b -= 0.5;
+        n.d += 0.5;
+      }
+    }
+  }
+  return best;
 }
 
 const PART_FNS = { bass: bassPart, walk: walkPart, comp: compPart, pad: sectionPad, arp: arpPart, gliss: glissPart, sparkle: sparklePart, brass: brassPart, fx: fxPart };
