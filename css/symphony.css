@@ -42,6 +42,7 @@ a { color: var(--gold); }
   padding: 6px 14px;
 }
 .marquee .back:hover { background: rgba(231, 192, 106, 0.12); }
+.marquee .pages { justify-self: start; display: flex; gap: 6px; flex-wrap: wrap; }
 .title { text-align: center; }
 .title h1 {
   margin: 0;

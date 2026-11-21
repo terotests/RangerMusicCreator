@@ -77,18 +77,29 @@ export class SampleBank {
     this.total = 0;
   }
 
-  async load(ctx, { root = SAMPLE_ROOT, onProgress = () => {}, fetcher = fetch } = {}) {
-    this.map = await (await fetcher(root + 'map.json')).json();
+  // sources: [{ root, sets? }] loads several sample folders into one bank
+  // (a sample's `f` becomes root + its path); `sets` limits what is loaded,
+  // `core` is loaded first so music can start early.
+  async load(ctx, { root = SAMPLE_ROOT, sources = [{ root }], core = CORE, onProgress = () => {}, fetcher = fetch } = {}) {
+    const map = {};
+    for (const src of sources) {
+      const m = await (await fetcher(src.root + 'map.json')).json();
+      for (const [k, v] of Object.entries(m)) {
+        if (src.sets && !src.sets.includes(k)) continue;
+        map[k] = { ...v, samples: v.samples.map((s) => ({ ...s, f: src.root + s.f })) };
+      }
+    }
     const files = [];
-    const order = [...CORE, ...Object.keys(this.map).filter((k) => !CORE.includes(k))];
-    for (const set of order) for (const s of this.map[set].samples) files.push(s.f);
+    const order = [...core.filter((k) => map[k]), ...Object.keys(map).filter((k) => !core.includes(k))];
+    for (const set of order) for (const s of map[set].samples) files.push(s.f);
     this.total = files.length;
+    this.map = map;
     let i = 0;
     const worker = async () => {
       while (i < files.length) {
         const f = files[i++];
         try {
-          const data = await (await fetcher(root + f)).arrayBuffer();
+          const data = await (await fetcher(f)).arrayBuffer();
           this.buffers.set(f, await ctx.decodeAudioData(data));
         } catch (err) {
           console.warn('sample failed', f, err);
@@ -105,10 +116,17 @@ export class SampleBank {
   }
 }
 
+// The symphony orchestra; other bands pass their own (see src/jazz/band.js).
+export const SYMPHONY_BAND = {
+  seats: SEATS, sets: SETS, hits: HITS, sectionOf: SECTION_OF, sections: ['strings', 'brass', 'winds', 'perc', 'harp'],
+  ring: RING, release: RELEASE, ensemble: ['strings'], kit: {}, synth: {}, setGain: {},
+};
+
 export class Orchestra {
-  constructor(ctx, bank, { destination = ctx.destination } = {}) {
+  constructor(ctx, bank, { destination = ctx.destination, band = SYMPHONY_BAND } = {}) {
     this.ctx = ctx;
     this.bank = bank;
+    this.band = { ...SYMPHONY_BAND, ...band };
     this.rr = new Map();
     this.listeners = [];
     this.voices = 0;
@@ -166,7 +184,7 @@ export class Orchestra {
 
     // Sections and players
     this.sections = {};
-    for (const s of ['strings', 'brass', 'winds', 'perc', 'harp']) {
+    for (const s of this.band.sections) {
       const g = ctx.createGain();
       g.connect(this.dry);
       const send = ctx.createGain();
@@ -174,7 +192,7 @@ export class Orchestra {
       this.sections[s] = { gain: g, send, level: 1 };
     }
     this.players = {};
-    for (const [p, seat] of Object.entries(SEATS)) {
+    for (const [p, seat] of Object.entries(this.band.seats)) {
       const input = ctx.createGain();
       input.gain.value = seat.gain;
       const tone = ctx.createBiquadFilter();
@@ -182,7 +200,7 @@ export class Orchestra {
       tone.frequency.value = 16000 - seat.depth * 7000; // far players a touch darker
       const pan = ctx.createStereoPanner();
       pan.pan.value = seat.pan;
-      input.connect(tone).connect(pan).connect(this.sections[SECTION_OF[p]].gain);
+      input.connect(tone).connect(pan).connect(this.sections[this.band.sectionOf[p]].gain);
       this.players[p] = { input, seat };
     }
     this.setHall(0.6, 0.5);
@@ -234,7 +252,7 @@ export class Orchestra {
     this.master.gain.setTargetAtTime(v * 0.87, this.ctx.currentTime, 0.05);
   }
 
-  pick(set, midi, vel) {
+  pick(set, midi, vel, retry = false) {
     const info = this.bank.map?.[set];
     if (!info) return null;
     const layer = info.layers > 1 && set !== 'harp' ? Math.min(info.layers - 1, Math.floor(vel * info.layers * 0.999 + (info.layers === 2 ? 0.1 : 0))) : null;
@@ -248,7 +266,7 @@ export class Orchestra {
       if (d < bestD - 1e-6) [best, bestD] = [[s], d];
       else if (Math.abs(d - bestD) < 1e-6) best.push(s);
     }
-    if (!best && layer != null) return this.pick(set, midi, vel < 0.5 ? 0.9 : 0.1);
+    if (!best && layer != null && !retry) return this.pick(set, midi, vel < 0.5 ? 0.9 : 0.1, true);
     if (!best) return null;
     const key = set + best[0].m;
     const n = (this.rr.get(key) || 0) + 1;
@@ -270,11 +288,24 @@ export class Orchestra {
   }
 
   pickHit(player, art, vel) {
-    const names = HITS[player]?.[art] || HITS[player]?.hit;
+    const hits = this.band.hits;
+    const names = hits[player]?.[art] || hits[player]?.hit;
     if (!names) return null;
     const name = names[Math.min(names.length - 1, Math.floor(vel * names.length))];
     const set = this.bank.map?.[player];
     return set?.samples.find((s) => s.f.endsWith('/' + name + '.mp3') && this.bank.buffers.has(s.f)) || null;
+  }
+
+  // A drum-kit hit: the strength layer from the velocity, round-robin inside it.
+  pickKit(set, vel) {
+    const info = this.bank.map?.[set];
+    if (!info) return null;
+    const layer = Math.min(info.layers - 1, Math.floor(vel * info.layers));
+    const list = info.samples.filter((s) => s.v === layer && this.bank.buffers.has(s.f));
+    if (!list.length) return info.samples.find((s) => this.bank.buffers.has(s.f)) || null;
+    const n = (this.rr.get(set + layer) || 0) + 1;
+    this.rr.set(set + layer, n);
+    return list[n % list.length];
   }
 
   // Plays one composer event at audio time t; spb = seconds per beat.
@@ -282,30 +313,42 @@ export class Orchestra {
     const ctx = this.ctx;
     const pl = this.players[ev.i];
     if (!pl) return;
-    const section = SECTION_OF[ev.i];
+    const B = this.band;
+    const section = B.sectionOf[ev.i];
     if (this.sections[section].level <= 0.001) return;
     const dur = Math.max(0.05, ev.d * spb);
     const v = ev.v;
     const v2 = ev.v2 ?? v;
+    if (B.synth[ev.i]) {
+      B.synth[ev.i](ctx, pl.input, ev, t, dur, this.active);
+      for (const fn of this.listeners) fn(ev, t, dur);
+      return;
+    }
     let s;
     let rate = 1;
-    if (HITS[ev.i]) {
+    let gain = 1;
+    if (B.kit[ev.i]) {
+      const set = B.kit[ev.i][ev.a] || B.kit[ev.i].hit;
+      s = this.pickKit(set, Math.max(v, v2));
+      gain = B.setGain[set] ?? 1;
+    } else if (B.hits[ev.i]) {
       s = this.pickHit(ev.i, ev.a, Math.max(v, v2));
     } else {
-      const sets = SETS[ev.i]?.[ev.a] || SETS[ev.i]?.sus || SETS[ev.i]?.hit;
+      const sets = B.sets[ev.i]?.[ev.a] || B.sets[ev.i]?.sus || B.sets[ev.i]?.hit;
       if (!sets) return;
       for (const set of sets) if ((s = this.pick(set, ev.m, Math.max(v, v2)))) {
         s.set = set;
+        gain = B.setGain[set] ?? 1;
         break;
       }
       if (s) rate = Math.pow(2, (ev.m - s.m - (s.c || 0) / 100) / 12);
     }
     if (!s) return;
     const buf = this.bank.buffers.get(s.f);
-    const ring = RING.has(ev.i);
-    const sustained = ev.a === 'sus' || ev.a === 'trem' || ev.a === 'roll' || ev.a === 'swell';
-    const rel = ring ? 0.12 : sustained ? RELEASE[section] || 0.25 : 0.12;
-    const voices = section === 'strings' && sustained && ev.i !== 'cb' ? 2 : 1;
+    const ring = B.ring.has(ev.i) || ev.a === 'fall';
+    const sustained = ev.a === 'sus' || ev.a === 'trem' || ev.a === 'roll' || ev.a === 'swell' || ev.a === 'mute' || ev.a === 'vib';
+    const rel = ring ? 0.12 : sustained ? B.release[section] || 0.25 : B.shortRelease?.[section] ?? 0.12;
+    const voices = B.ensemble.includes(section) && sustained && ev.i !== 'cb' ? 2 : 1;
     for (let k = 0; k < voices; k++) {
       let smp = s;
       let r = rate;
@@ -324,8 +367,8 @@ export class Orchestra {
         src.loopEnd = smp.loop[1];
       }
       const g = ctx.createGain();
-      const lvl = (0.03 + 0.97 * Math.pow(v, 1.9)) * (k ? 0.55 : 1);
-      const lvl2 = (0.03 + 0.97 * Math.pow(v2, 1.9)) * (k ? 0.55 : 1);
+      const lvl = (0.03 + 0.97 * Math.pow(v, 1.9)) * (k ? 0.55 : 1) * gain;
+      const lvl2 = (0.03 + 0.97 * Math.pow(v2, 1.9)) * (k ? 0.55 : 1) * gain;
       const t0 = t + k * 0.011;
       const attack = sustained && !ring ? (ev.a === 'swell' || ev.a === 'roll' || ev.v2 != null ? 0.05 : 0.018 + (1 - v) * 0.06) : 0.002;
       g.gain.setValueAtTime(0, t0);

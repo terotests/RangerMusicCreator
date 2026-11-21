@@ -91,6 +91,54 @@ stage are darker and wetter. Code: `src/symphony/` (`composer.js` themes and
 orchestration, `classics.js`, `orchestra.js` sampler and hall, `score.js` MIDI
 scores, `stage.js` the hall view, `app.js` the page).
 
+## Ragtime and Big Band (`ragtime.html`, `bigband.html`)
+
+Two more creators built on the symphony's sampler, each with its own page
+and look. The pages link to each other, to the desk and to the symphony.
+
+**Ranger Ragtime** (1897–1925) looks like an old sheet-music cover, with a
+player piano whose paper roll scrolls past the tracker bar.
+
+- **RAGS**: Piano Rag, Cakewalk, Dixieland Stomp, Slow Drag, Novelty
+  Xylophone. Each writes an original rag in the classic form: intro, first
+  strain, second strain, the first again, and a trio in the subdominant, each
+  strain twice, then an ending. Syncopated right hand (16th-note cells, chromatic
+  lower neighbours, chord tones under the long notes) over a stride left hand
+  (bass octave on the beat, chord on the off-beat, walking octaves into the
+  next strain).
+- **BAND**: AUTO lets the band join on the repeats: cornet (or xylophone) on
+  the tune, clarinet runs, a tailgate trombone with falls, tuba on the two
+  beats and drums (march, stomp, brushes or temple blocks). FULL BAND and
+  SOLO PIANO fix it.
+- **JOPLIN**: The Entertainer, Maple Leaf Rag, The Easy Winners, Pineapple
+  Rag and Peacherine Rag, played note for note from MIDI files in `scores/`
+  (made with LilyPond from the Mutopia Project's public-domain editions). The
+  band arrangement is generated from the score: chords are detected from the
+  notes, the band joins when a strain repeats.
+
+**Ranger Big Band** (1935–1945) is an art-deco ballroom with the band on
+three risers and a spotlight on the soloist.
+
+- **TUNES**: Swing Bounce (32-bar AABA), Jump Blues and Kansas City Shuffle
+  (12-bar blues), Moonlight Ballad, Jungle Drums (minor, tom-toms). The
+  arrangement: intro, the tune with the reeds in four-part close harmony and
+  brass punches (the bridge goes to the brass), improvised solo choruses for
+  trumpet, clarinet, trombone or piano with section backgrounds, a shout
+  chorus (often up a step) with the trumpets on top, the tune out and a tag
+  ending, sometimes with a Basie-style piano button. Walking bass, ride
+  cymbal with the hi-hat on 2 and 4, piano comping.
+- **STANDARDS**: When the Saints Go Marching In and Maple Leaf Rag as swing.
+- **SWING** sets how much the eighths swing; **SHOUT!** jumps to the shout
+  chorus; **ENDING** takes it out.
+
+The VSCO library has no saxophones, so the reeds are clarinets with a bassoon
+under them. Extra samples (4.4 MB, `samples/jazz/`) are built from VSCO 2 CE
+by `scripts/build-jazz-samples.py`; the hi-hat is synthesised. Code:
+`src/jazz/` (`band.js` players and sample sets, `ragtime.js`, `bigband.js`,
+`scores.js` Joplin MIDI files, `theory.js` jazz chords and swing, `stage.js`,
+`app.js`). Links: `ragtime.html?style=stomp&seed=7`, `ragtime.html?piece=maple`,
+`bigband.html?style=jump&seed=5`, `bigband.html?tune=saints`.
+
 ## TASTE: learning what you like
 
 Everything stays in the browser; there is no server.
