@@ -1,0 +1,95 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: MIT -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ranger Big Band</title>
+    <meta name="description" content="A swing big band creator: original swing tunes with solos and shout choruses, played by a sampled band of reeds, trumpets, trombones and rhythm section." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%230b1020%27/%3E%3Cpath d=%27M16 28 L4 10 M16 28 L10 6 M16 28 L16 4 M16 28 L22 6 M16 28 L28 10%27 stroke=%27%23d9b45a%27 stroke-width=%272%27/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="css/jazz.css" />
+  </head>
+  <body data-band="bigband">
+    <header class="marquee">
+      <nav class="nav">
+        <a href="index.html" data-help="The mixing desk: beats and grooves.">DESK</a>
+        <a href="symphony.html" data-help="The cinematic orchestra.">SYMPHONY</a>
+        <a href="ragtime.html" data-help="Ragtime and early jazz.">RAGTIME</a>
+      </nav>
+      <div class="title">
+        <h1>RANGER <em>BIG BAND</em></h1>
+        <p>SWING ERA DANCE ORCHESTRA · 1935–1945</p>
+      </div>
+      <button class="info-btn" id="info-btn" data-help="What this is and where the sounds come from.">?</button>
+    </header>
+
+    <main class="hall">
+      <section class="stage-wrap">
+        <canvas id="stage" width="1200" height="520" aria-label="The band on stage; players light up as they play"></canvas>
+        <div class="now">
+          <div class="now-name" id="now-name">—</div>
+          <div class="now-meta" id="now-meta">Press PLAY</div>
+        </div>
+        <div class="loading" id="loading">
+          <div class="load-card">
+            <div class="load-title">The band is tuning up…</div>
+            <div class="load-bar"><i id="load-fill"></i></div>
+            <div class="load-text" id="load-text">0 / 0 samples</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="program">
+        <nav class="tabs" role="tablist">
+          <button role="tab" data-tab="styles" class="on">TUNES</button>
+          <button role="tab" data-tab="pieces">STANDARDS</button>
+        </nav>
+        <div class="cards" id="tab-styles"></div>
+        <div class="cards" id="tab-pieces" hidden></div>
+      </section>
+
+      <section class="desk">
+        <div class="transport">
+          <button class="btn big" id="play" data-help="Play / stop (space).">▶ PLAY</button>
+          <button class="btn" id="new" data-help="A new original tune in this style (N).">NEW TUNE</button>
+          <button class="btn" id="next" data-help="Skip to the next part: the tune, a solo, the shout chorus (→).">NEXT ▸</button>
+          <button class="btn red" id="climax" data-help="Jump to the shout chorus: the whole band, trumpets on top (C).">SHOUT!</button>
+          <button class="btn" id="ending" data-help="Take it out: the last chorus, the tag and the final chord (E).">ENDING</button>
+        </div>
+        <div class="knobs">
+          <label class="ctl" data-help="Tempo, from 60% to 140% of the written speed."><span>TEMPO</span><input type="range" id="tempo" min="0.6" max="1.4" step="0.01" value="1" /><output id="tempo-out">100%</output></label>
+          <label class="ctl" data-help="How hot it gets: softer and sparser at the left, the whole band flat out at the right."><span>INTENSITY</span><input type="range" id="intensity" min="0" max="1" step="0.01" value="0.6" /><output id="intensity-out">60</output></label>
+          <label class="ctl" data-help="How much the eighth notes swing. At the left the style decides; to the right, from light to a heavy shuffle."><span>SWING</span><input type="range" id="swing" min="0.5" max="0.72" step="0.01" value="0.5" /><output id="swing-out">STYLE</output></label>
+          <label class="ctl chk" data-help="AUTO: the music builds by itself through the form. Off: it stays at the INTENSITY you set."><input type="checkbox" id="auto" checked /><span>AUTO SHAPE</span></label>
+          <label class="ctl" data-help="Size of the room: a small parlour at the left, a dance hall at the right."><span>ROOM SIZE</span><input type="range" id="hall-size" min="0" max="1" step="0.01" value="0.25" /><output id="hall-size-out">2.1 s</output></label>
+          <label class="ctl" data-help="How much room you hear."><span>ROOM MIX</span><input type="range" id="hall-mix" min="0" max="1" step="0.01" value="0.35" /><output id="hall-mix-out">35</output></label>
+          <label class="ctl" data-help="Master volume."><span>VOLUME</span><input type="range" id="volume" min="0" max="1.2" step="0.01" value="0.9" /><output id="volume-out">90</output></label>
+        </div>
+        <div class="sections" id="sections"></div>
+        <div class="files">
+          <button class="btn gold" id="save" data-help="Render the whole piece to a WAV file, faster than real time.">SAVE WAV</button>
+          <button class="btn" id="link" data-help="Copy a link to this piece.">LINK</button>
+          <span class="help-line" id="help-line">Hover over a control to see what it does.</span>
+        </div>
+      </section>
+    </main>
+
+    <div id="info" hidden>
+      <div class="info-card">
+        <button class="info-close" aria-label="Close">×</button>
+        <h2>Ranger Big Band</h2>
+        <p>A swing-era dance band, 1935–1945. Pick a <b>style</b> and the composer writes an original tune and arranges it the way the big bands did: an intro, the tune with the reeds in close harmony and the brass punching, improvised solo choruses with backgrounds from the sections, a shout chorus with the trumpets screaming on top, the tune again and a tag ending. Then it writes the next tune.</p>
+        <p><b>Standards</b> are public-domain tunes: <i>When the Saints Go Marching In</i> (traditional) and Scott Joplin's <i>Maple Leaf Rag</i> played as swing, as the swing bands did. Only public-domain compositions are used; no recording or arrangement by anyone else.</p>
+        <p><b>The band</b> is sampled from the VS Chamber Orchestra Community Edition by Versilian Studios (CC0, public domain): trumpets open and muted, trombones with falls, clarinets, upright piano, pizzicato bass and drums. The library has no saxophones, so the reed section is clarinets with a bassoon below, the way some swing bands voiced their reeds. The hi-hat is synthesized. What you save is yours to use, in games too, with no royalties.</p>
+        <ul>
+          <li><b>SWING</b> sets the feel; <b>SHOUT!</b> jumps to the shout chorus; <b>ENDING</b> takes it out.</li>
+          <li>The faders set each section; <b>M</b> mutes it.</li>
+          <li>Keys: space play/stop, N new tune, → next part, C shout chorus, E ending.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <noscript>Ranger Big Band needs JavaScript and Web Audio.</noscript>
+    <script type="module" src="src/jazz/app.js"></script>
+  </body>
+</html>

@@ -74,6 +74,8 @@ html, body {
   background: linear-gradient(180deg, #4a0d14, #2a060b);
 }
 .to-symphony:hover { color: #fff; border-color: #e7c06a; }
+.to-symphony + .to-symphony { margin-left: 8px; }
+.to-symphony:not(:last-of-type) { margin-right: 0; }
 .model { display: flex; align-items: baseline; gap: 14px; }
 .model span { font-size: 17px; letter-spacing: 1px; color: var(--silk); }
 .model b { font-size: 30px; font-weight: 800; color: #fff; }

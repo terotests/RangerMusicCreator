@@ -1,0 +1,95 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: MIT -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ranger Ragtime</title>
+    <meta name="description" content="An early-jazz band creator: original rags and Scott Joplin classics on a sampled upright piano with cornet, clarinet, trombone, tuba and drums." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%23f1e3c2%27/%3E%3Crect x=%275%27 y=%2714%27 width=%2722%27 height=%2712%27 fill=%27%233b2414%27/%3E%3Cpath d=%27M7 14v8M11 14v8M15 14v8M19 14v8M23 14v8%27 stroke=%27%23f1e3c2%27/%3E%3Ccircle cx=%2716%27 cy=%278%27 r=%273%27 fill=%27%23a3322a%27/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="css/jazz.css" />
+  </head>
+  <body data-band="ragtime">
+    <header class="marquee">
+      <nav class="nav">
+        <a href="index.html" data-help="The mixing desk: beats and grooves.">DESK</a>
+        <a href="symphony.html" data-help="The cinematic orchestra.">SYMPHONY</a>
+        <a href="bigband.html" data-help="The swing-era big band.">BIG BAND</a>
+      </nav>
+      <div class="title">
+        <h1>RANGER <em>RAGTIME</em></h1>
+        <p>RAGTIME &amp; EARLY JAZZ · 1897–1925</p>
+      </div>
+      <button class="info-btn" id="info-btn" data-help="What this is and where the sounds come from.">?</button>
+    </header>
+
+    <main class="hall">
+      <section class="stage-wrap">
+        <canvas id="stage" width="1200" height="520" aria-label="The band on stage; players light up as they play"></canvas>
+        <div class="now">
+          <div class="now-name" id="now-name">—</div>
+          <div class="now-meta" id="now-meta">Press PLAY</div>
+        </div>
+        <div class="loading" id="loading">
+          <div class="load-card">
+            <div class="load-title">The pianist is rolling up their sleeves…</div>
+            <div class="load-bar"><i id="load-fill"></i></div>
+            <div class="load-text" id="load-text">0 / 0 samples</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="program">
+        <nav class="tabs" role="tablist">
+          <button role="tab" data-tab="styles" class="on">RAGS</button>
+          <button role="tab" data-tab="pieces">JOPLIN</button>
+        </nav>
+        <div class="cards" id="tab-styles"></div>
+        <div class="cards" id="tab-pieces" hidden></div>
+      </section>
+
+      <section class="desk">
+        <div class="transport">
+          <button class="btn big" id="play" data-help="Play / stop (space).">▶ PLAY</button>
+          <button class="btn" id="new" data-help="A new original rag in this style (N).">NEW RAG</button>
+          <button class="btn" id="next" data-help="Skip to the next strain (→).">NEXT STRAIN ▸</button>
+          <button class="btn red" id="climax" data-help="Jump to the trio's repeat with the whole band (C).">BIG FINISH!</button>
+          <button class="btn" id="ending" data-help="Play the ending and stop (E).">ENDING</button>
+        </div>
+        <div class="knobs">
+          <label class="ctl" data-help="Tempo, from 60% to 140% of the written speed."><span>TEMPO</span><input type="range" id="tempo" min="0.6" max="1.4" step="0.01" value="1" /><output id="tempo-out">100%</output></label>
+          <label class="ctl" data-help="How hot it gets: softer and sparser at the left, the whole band flat out at the right."><span>INTENSITY</span><input type="range" id="intensity" min="0" max="1" step="0.01" value="0.6" /><output id="intensity-out">60</output></label>
+          <label class="ctl" data-help="AUTO: the band joins the piano when a strain repeats. BAND: always the full band. SOLO PIANO: piano only."><span>BAND</span><select id="band-mode"><option value="auto">AUTO (JOINS ON REPEATS)</option><option value="on">FULL BAND</option><option value="off">SOLO PIANO</option></select></label>
+          <label class="ctl chk" data-help="AUTO: the music builds by itself through the form. Off: it stays at the INTENSITY you set."><input type="checkbox" id="auto" checked /><span>AUTO SHAPE</span></label>
+          <label class="ctl" data-help="Size of the room: a small parlour at the left, a dance hall at the right."><span>ROOM SIZE</span><input type="range" id="hall-size" min="0" max="1" step="0.01" value="0.25" /><output id="hall-size-out">2.1 s</output></label>
+          <label class="ctl" data-help="How much room you hear."><span>ROOM MIX</span><input type="range" id="hall-mix" min="0" max="1" step="0.01" value="0.35" /><output id="hall-mix-out">35</output></label>
+          <label class="ctl" data-help="Master volume."><span>VOLUME</span><input type="range" id="volume" min="0" max="1.2" step="0.01" value="0.9" /><output id="volume-out">90</output></label>
+        </div>
+        <div class="sections" id="sections"></div>
+        <div class="files">
+          <button class="btn gold" id="save" data-help="Render the whole piece to a WAV file, faster than real time.">SAVE WAV</button>
+          <button class="btn" id="link" data-help="Copy a link to this piece.">LINK</button>
+          <span class="help-line" id="help-line">Hover over a control to see what it does.</span>
+        </div>
+      </section>
+    </main>
+
+    <div id="info" hidden>
+      <div class="info-card">
+        <button class="info-close" aria-label="Close">×</button>
+        <h2>Ranger Ragtime</h2>
+        <p>Ragtime and early jazz, 1897–1925. Pick a <b>style</b> and the composer writes an original rag in the classic form: an introduction, a first strain, a second strain, the first strain again, and a trio in a new key, each strain played twice. The piano plays it as a rag is written, with a syncopated right hand over a striding left hand, and the band joins on the repeats: cornet (or xylophone) on the tune, clarinet runs above it, a tailgate trombone, tuba on the two beats and drums.</p>
+        <p><b>Joplin</b> plays five of Scott Joplin's rags note for note from the Mutopia Project's public-domain editions. Joplin died in 1917, so his music is free to use everywhere. The band arrangement is made here.</p>
+        <p><b>The sounds</b> are real instruments recorded note by note: the VS Chamber Orchestra Community Edition by Versilian Studios, released as CC0 (public domain), including its upright piano, a 1950s trombone, muted trumpet, clarinet, temple blocks and xylophone. Only the hi-hat is synthesized. What you save is yours to use, in games too, with no royalties.</p>
+        <ul>
+          <li><b>BAND</b>: AUTO lets the band join on the repeats; FULL BAND or SOLO PIANO fixes it.</li>
+          <li><b>BIG FINISH!</b> jumps to the trio with the whole band, <b>ENDING</b> plays the ending and stops.</li>
+          <li>Keys: space play/stop, N new rag, → next strain, C big finish, E ending.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <noscript>Ranger Ragtime needs JavaScript and Web Audio.</noscript>
+    <script type="module" src="src/jazz/app.js"></script>
+  </body>
+</html>

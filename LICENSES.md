@@ -69,6 +69,36 @@ are used. MIDI scores loaded with MIDI SCORE stay in the browser and are
 never added to this repository: check each file's licence before publishing
 what you make with it.
 
+## Ragtime and Big Band (`ragtime.html`, `bigband.html`)
+
+These pages use the same rule as the symphony: only CC0 samples and
+public-domain compositions.
+
+| What | Source | Licence |
+| --- | --- | --- |
+| Band samples (`samples/jazz/`: upright piano, muted and vibrato trumpet, 1950s tenor trombone sustains, shorts and falls, staccato clarinet, xylophone, temple blocks, suspended cymbal played as a ride, snare taps and snare-off hits used as a tom) | [VS Chamber Orchestra: Community Edition](https://github.com/sgossner/VSCO-2-CE) by Versilian Studios (the upright piano recorded by Simon Dalzell of Ivy Audio, the trombone set is VSCO's unreleased 'OldTrombone' test). Trimmed, pitch-checked and converted to MP3 by `scripts/build-jazz-samples.py`. They also use some `samples/vsco2/` sets (trumpet, trombone, clarinet, bassoon, tuba, pizzicato bass, bass drum, snare, cymbals). | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| Hi-hat | Synthesised from generated noise, `src/jazz/band.js` | MIT (this repo) |
+| Original rags and swing tunes, all band arrangements | Written by rules and a seed, `src/jazz/ragtime.js`, `src/jazz/bigband.js`. Chord progressions such as I–vi–ii–V, the 12-bar blues or the ragtime III7–VI7–II7–V7 circle are common building blocks, not owned works. | MIT (this repo) |
+
+Public-domain pieces:
+
+| Piece | Work | Source of the notes | Why it is public domain |
+| --- | --- | --- | --- |
+| THE ENTERTAINER | Scott Joplin (1902) | `scores/joplin-entertainer.mid`, made with LilyPond from the [Mutopia Project](https://www.mutopiaproject.org/) edition (`ftp/JoplinS/entertainer`), placed in the public domain by its typesetter | Composer died 1917; published 1902 |
+| MAPLE LEAF RAG | Scott Joplin (1899) | `scores/joplin-maple-leaf-rag.mid`, Mutopia `ftp/JoplinS/maple`, public domain | Composer died 1917; published 1899 |
+| THE EASY WINNERS | Scott Joplin (1901) | `scores/joplin-easy-winners.mid`, Mutopia `ftp/JoplinS/winners`, public domain | Composer died 1917; published 1901 |
+| PINEAPPLE RAG | Scott Joplin (1908) | `scores/joplin-pineapple-rag.mid`, Mutopia `ftp/JoplinS/PineappleRag`, public domain | Composer died 1917; published 1908 |
+| PEACHERINE RAG | Scott Joplin (1901) | `scores/joplin-peacherine-rag.mid`, Mutopia `ftp/JoplinS/peacherine`, public domain | Composer died 1917; published 1901 |
+| MAPLE LEAF RAG (SWING) | Scott Joplin (1899), its first two strains swung by the big band | The same MIDI file | As above |
+| WHEN THE SAINTS GO MARCHING IN | Traditional American spiritual | Written out by ear in `src/jazz/bigband.js` | Traditional |
+
+Left out on purpose: swing-era arrangements and most swing standards are
+still protected (for example Gershwin's songs in the US, Ferde Grofé's
+orchestration of Rhapsody in Blue, W. C. Handy's blues in Finland until the
+end of 2028, Glenn Miller's and Benny Goodman's band arrangements). Only the
+general habits of the style are used: close-harmony section writing, riffs,
+shout choruses, walking bass and the ride-cymbal beat.
+
 Rules for adding material:
 
 - New sounds on the desk should stay synthesised. Samples (the symphony
