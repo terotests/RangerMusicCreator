@@ -84,7 +84,7 @@ export function hihat(ctx, out, ev, t, dur, active) {
   };
 }
 
-const COMMON = { sets: SETS, hits: HITS, kit: KIT, setGain: SET_GAIN, ring: RING, synth: { hh: hihat }, ensemble: [] };
+const COMMON = { sets: SETS, hits: HITS, kit: KIT, setGain: SET_GAIN, ring: RING, synth: { hh: hihat }, ensemble: [], useOnset: true };
 
 // ---- Ragtime: piano, a front line and a two-beat rhythm section -------------
 

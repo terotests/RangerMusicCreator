@@ -61,6 +61,7 @@ export const SPACE_BAND = {
   synth: { vib: V.vib, org: V.organ, thr: V.theremin, ufo: V.ufo, bird: V.bird, hh: hihat },
   fx: { thr: V.tempoDelay(1, 0.32, 0.22), vib: V.tempoDelay(1.5, 0.2, 0.12), org: V.chorus(0.002, 0.35) },
   ensemble: ['strings'],
+  useOnset: true,
   release: { strings: 0.45, brass: 0.2, keys: 0.25, space: 0.3, rhythm: 0.1 },
   shortRelease: { keys: 0.2, brass: 0.09, strings: 0.15 },
   seats: {
