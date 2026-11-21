@@ -70,10 +70,98 @@ const guitar = voice((ctx, out, ev, t, dur) => {
   pre.connect(ws).connect(lp).connect(hp).connect(amp).connect(out);
 }, 0.5);
 
-const tamb = voice((ctx, out, ev, t) => hatDrum(ctx, out, t, ev.v, { color: 6500, gain: 0.16, decay: 0.12 }, false), 0.4);
+// Hi-hat: six square waves at inharmonic ratios (the classic drum-machine
+// metal) through a band-pass and a high-pass, with a little noise for air.
+// Closed hats are short and snappy; harder hits are brighter and ring a
+// touch longer, soft ones are dark and tight, so the groove has dynamics.
+const HAT_HZ = [205.3, 304.4, 369.6, 522.7, 540, 800];
+const metalHat = voice((ctx, out, ev, t) => {
+  const open = ev.a === 'open';
+  const v = Math.max(0.05, Math.min(1, ev.v));
+  const decay = open ? 0.18 + 0.12 * v : 0.018 + 0.04 * v * v;
+  const stop = t + decay * 4 + 0.02;
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = 7800 + 3200 * v;
+  bp.Q.value = 1.1;
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 6500 + 1500 * v;
+  const amp = ctx.createGain();
+  const peak = 0.5 * Math.pow(v, 1.5);
+  amp.gain.setValueAtTime(0, t);
+  amp.gain.linearRampToValueAtTime(peak, t + 0.0008);
+  amp.gain.exponentialRampToValueAtTime(Math.max(1e-4, peak * 0.25), t + decay);
+  amp.gain.exponentialRampToValueAtTime(1e-4, t + decay * 4);
+  const mix = ctx.createGain();
+  mix.gain.value = 0.16;
+  for (const hz of HAT_HZ) {
+    const o = ctx.createOscillator();
+    o.type = 'square';
+    o.frequency.value = hz * 1.7;
+    o.connect(mix);
+    o.start(t);
+    o.stop(stop);
+  }
+  const air = ctx.createBufferSource();
+  const len = Math.ceil(ctx.sampleRate * (decay * 4 + 0.02));
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  air.buffer = buf;
+  const airG = ctx.createGain();
+  airG.gain.value = 0.18;
+  air.connect(airG).connect(hp);
+  mix.connect(bp).connect(hp).connect(amp).connect(out);
+  air.start(t);
+  air.stop(stop);
+}, 0.5);
+
+// Snare: a tuned drum head (two sines that drop in pitch) with a short,
+// mid-range rattle. Much drier than the gated 1980s snare, so it cracks
+// instead of hissing; a light 'ghost' hit is softer and duller still.
+const popSnare = voice((ctx, out, ev, t) => {
+  const v = Math.max(0.05, Math.min(1, ev.v));
+  const ghost = ev.a === 'ghost';
+  const amp = (peak, decay) => {
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(peak, t + 0.001);
+    g.gain.exponentialRampToValueAtTime(1e-4, t + decay);
+    g.connect(out);
+    return g;
+  };
+  const body = amp(0.5 * v, ghost ? 0.08 : 0.14);
+  for (const [f0, f1, gg] of [[240, 175, 1], [400, 330, 0.45]]) {
+    const o = ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(f1, t + 0.05);
+    const og = ctx.createGain();
+    og.gain.value = gg;
+    o.connect(og).connect(body);
+    o.start(t);
+    o.stop(t + 0.2);
+  }
+  const len = Math.ceil(ctx.sampleRate * 0.2);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  const n = ctx.createBufferSource();
+  n.buffer = buf;
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = ghost ? 2200 : 3200 + 1200 * v;
+  bp.Q.value = 0.9;
+  n.connect(bp).connect(amp((ghost ? 0.12 : 0.28) * v, ghost ? 0.05 : 0.1 + 0.04 * v));
+  n.start(t);
+  n.stop(t + 0.2);
+}, 0.3);
+
+const tamb = voice((ctx, out, ev, t) => hatDrum(ctx, out, t, ev.v, { color: 7500, gain: 0.1, decay: 0.07 }, false), 0.4);
 
 export const POP_SECTION_OF = {
-  kick: 'drums', snare: 'drums', clap: 'drums', hat: 'drums', crash: 'drums', etom: 'drums', sweep: 'drums', tamb: 'drums',
+  kick: 'drums', snare: 'drums', clap: 'drums', hat: 'cymbals', crash: 'cymbals', etom: 'drums', sweep: 'cymbals', tamb: 'cymbals',
   bass: 'bass', mbass: 'bass', pbass: 'bass',
   hpsi: 'keys', ep: 'keys', piano: 'keys', organ: 'keys', arp: 'keys', bell: 'keys', gtr: 'keys', stab: 'keys',
   pad: 'pads', str: 'pads', vox: 'pads', pump: 'pads',
@@ -82,6 +170,7 @@ export const POP_SECTION_OF = {
 
 export const POP_SECTIONS = [
   ['drums', 'DRUMS'],
+  ['cymbals', 'CYMBALS · RISERS'],
   ['bass', 'BASS'],
   ['keys', 'KEYS · GUITAR'],
   ['pads', 'PADS & STRINGS'],
@@ -97,7 +186,7 @@ export const POP_BAND = {
   sections: POP_SECTIONS.map(([k]) => k),
   sets: {}, hits: {}, kit: {}, setGain: {}, ring: new Set(), ensemble: [],
   synth: {
-    kick: V.kick, snare: V.snare, clap: V.clap, hat: V.hat, crash: V.crash, etom: V.etom, sweep: V.sweep, tamb,
+    kick: V.kick, snare: popSnare, clap: V.clap, hat: metalHat, crash: V.crash, etom: V.etom, sweep: V.sweep, tamb,
     bass: V.synthBass, mbass: preset('moogBass', 0.5), pbass: preset('pickBass', 0.6),
     hpsi: preset('harpsi', 1), ep: V.ep, piano: preset('popPiano', 1.5), organ: V.organ, arp: V.arp, bell: V.bell, gtr: guitar, stab: preset('stab', 0.5),
     pad: V.pad, str: V.strings, vox: V.vox, pump: preset('pumpPad', 0.4),
@@ -117,8 +206,8 @@ export const POP_BAND = {
   },
   release: {}, shortRelease: {},
   seats: {
-    kick: seat(0, 0, 0.72), snare: seat(0.04, 0.1, 0.85), clap: seat(-0.06, 0.1, 0.8), hat: seat(0.3, 0.15, 0.36),
-    crash: seat(-0.3, 0.15, 0.55), etom: seat(-0.2, 0.1, 0.8), sweep: seat(0, 0.2, 0.55), tamb: seat(0.45, 0.2, 0.5),
+    kick: seat(0, 0, 0.72), snare: seat(0.04, 0.1, 0.8), clap: seat(-0.06, 0.1, 0.8), hat: seat(0.3, 0.12, 0.5),
+    crash: seat(-0.3, 0.15, 0.35), etom: seat(-0.2, 0.1, 0.8), sweep: seat(0, 0.2, 0.3), tamb: seat(0.45, 0.2, 0.4),
     bass: seat(0, 0, 0.68), mbass: seat(0, 0, 0.7), pbass: seat(0, 0, 0.7),
     hpsi: seat(-0.3, 0.2, 0.8), ep: seat(0.3, 0.15, 0.85), piano: seat(0.25, 0.15, 0.8), organ: seat(0.35, 0.25, 0.6), arp: seat(-0.35, 0.1, 0.7),
     bell: seat(0.4, 0.2, 0.7), gtr: seat(-0.25, 0.1, 0.75), stab: seat(0.2, 0.15, 0.7),

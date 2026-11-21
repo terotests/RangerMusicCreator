@@ -124,21 +124,59 @@ function drumPart(c) {
       const off = !near(b, Math.round(b));
       const sixteenth = !near(b * 2, Math.round(b * 2));
       let acc = 1;
+      let art = a || 'hit';
       if (p === 'hat') {
         if (sixteenth && e < 0.6) continue;
-        acc = sixteenth ? 0.55 : off ? 0.8 : 1;
+        // A drummer's hand: the beat strong, the offbeat lighter, the
+        // sixteenths ghosted, beat 1 of a phrase pushed, and an open hat
+        // at the end of every fourth bar to lift into the next phrase.
+        acc = sixteenth ? 0.4 : off ? 0.68 : near(b % 2, 0) ? 1.08 : 0.92;
+        if (c.barIn % 4 === 0 && near(b, 0)) acc = 1.2;
+        if (c.barIn % 4 === 3 && near(b, 3.5) && art !== 'open') art = 'open';
       }
-      out.push({ i: p, a: a || 'hit', b, d: a === 'open' ? 0.5 : 0.25, v: clamp(v * acc * (0.75 + 0.35 * e) * (0.93 + c.rng.next() * 0.14), 0.05, 1) });
+      out.push({ i: p, a: art, b, d: art === 'open' ? 0.5 : 0.25, v: clamp(v * acc * (0.75 + 0.35 * e) * (0.9 + c.rng.next() * 0.2), 0.05, 1) });
     }
   }
-  // The build-up: a snare roll that doubles its speed every bar, getting louder.
+  // The build-up: a snare roll that doubles its speed every bar, from a
+  // whisper to a crack.
   if (sec === 'build') {
     const drum = c.has('snare') ? 'snare' : 'clap';
     const unit = [1, 0.5, 0.25, 0.25][Math.min(3, Math.floor((c.barIn * 4) / c.len))];
     for (let b = 0; b < c.beats - 1e-6; b += unit) {
       const prog = (c.barIn + b / c.beats) / c.len;
-      out.push({ i: drum, a: 'hit', b, d: 0.2, v: clamp(0.3 + 0.6 * prog, 0.05, 1) });
+      out.push({ i: drum, a: prog < 0.5 ? 'ghost' : 'hit', b, d: 0.2, v: clamp(0.15 + 0.5 * prog * prog, 0.05, 1) });
     }
+    return out;
+  }
+  return vary(c, out, loud);
+}
+
+// A drummer does not play the same bar four times. Ghost notes on the
+// snare, a pushed kick every other bar, and at the end of each phrase a
+// turn-around: a kick on the "and", a short snare fill into the next bar.
+function vary(c, out, loud) {
+  const rng = c.rng;
+  const four = out.filter((e) => e.i === 'kick').length >= 4;
+  const back = out.some((e) => e.i === 'snare') ? 'snare' : out.some((e) => e.i === 'clap') ? 'clap' : null;
+  const at = (i, b) => out.some((e) => e.i === i && near(e.b, b));
+  const add = (i, b, v, a = 'hit') => {
+    if (c.has(i) && !at(i, b)) out.push({ i, a, b, d: 0.2, v });
+  };
+  if (back === 'snare' && c.energy > 0.4) {
+    for (const b of [0.75, 1.75, 2.75, 3.25]) if (rng.chance(loud ? 0.3 : 0.18)) add('snare', b, 0.14 + 0.08 * c.energy, 'ghost');
+  }
+  if (!four && c.barIn % 2 === 1 && rng.chance(0.6)) add('kick', rng.pick([1.5, 2.5, 3.5]), 0.6);
+  const phraseEnd = c.barIn % 4 === 3 && c.barIn < c.len - 1;
+  const sectionEnd = c.barIn === c.len - 1;
+  if (phraseEnd && !sectionEnd) {
+    if (!four) add('kick', 3.5, 0.65);
+    if (back && rng.chance(0.7)) {
+      const pat = rng.pick([[3.25, 3.5, 3.75], [3.5, 3.75], [3, 3.25, 3.5, 3.75]]);
+      pat.forEach((b, k) => add(back === 'snare' ? 'snare' : 'clap', b, 0.3 + 0.12 * k, k === 0 ? 'ghost' : 'hit'));
+    }
+  }
+  if (sectionEnd && back && !c.S.fill) {
+    for (let k = 0; k < 4; k++) add(back, 3 + k * 0.25, 0.35 + k * 0.12);
   }
   return out;
 }
@@ -423,9 +461,9 @@ export class PopComposer {
       events = events.filter((e) => !(e.b >= 2 && ['snare', 'clap', 'kick'].includes(e.i)));
       add(tomFill(c));
     }
-    if (step.section === 'build' && step.i === 0) add([{ i: 'sweep', a: 'hit', b: 0, d: 4 * step.len - 0.5, v: 0.7 }]);
-    if (step.section === 'break' && step.i === 0) add([{ i: 'sweep', a: 'fall', b: 0, d: 6, v: 0.5 }]);
-    if (step.i === 0 && ['verse', 'chorus', 'lift'].includes(step.section)) add([{ i: 'crash', a: 'hit', b: 0, d: 2, v: 0.45 + energy * 0.35 }]);
+    if (step.section === 'build' && step.i === 0) add([{ i: 'sweep', a: 'hit', b: 0, d: 4 * step.len - 0.5, v: 0.45 }]);
+    if (step.section === 'break' && step.i === 0) add([{ i: 'sweep', a: 'fall', b: 0, d: 6, v: 0.3 }]);
+    if (step.i === 0 && ['verse', 'chorus', 'lift'].includes(step.section)) add([{ i: 'crash', a: 'hit', b: 0, d: 2, v: 0.3 + energy * 0.3 }]);
 
     events = this.finish(events, c);
     const bpm = clamp(song.bpm * this.tempo, 40, 260);
