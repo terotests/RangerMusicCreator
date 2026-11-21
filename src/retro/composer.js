@@ -76,7 +76,7 @@ export const CELLS = {
 
 // Notes of a chord as pitch classes: four-note jazz sound or a plain triad
 // (with an added ninth when asked).
-function chordTones(key, ch, S) {
+export function chordTones(key, ch, S) {
   if (S.harmony === 'triad') {
     const t = chordPcs(key, ch).slice(0, 3);
     // The added ninth only where it belongs to the key (not on iii, or on V in minor).
@@ -88,7 +88,7 @@ function chordTones(key, ch, S) {
 }
 
 // Close voicing of `pcs` around `center`, moving as little as possible from `prev`.
-function voice(pcs, center, prev, n = pcs.length) {
+export function voice(pcs, center, prev, n = pcs.length) {
   let best = null;
   let bestScore = Infinity;
   for (let inv = 0; inv < pcs.length; inv++) {
@@ -310,7 +310,7 @@ const BASS = {
 };
 
 function bassPart(c, spec) {
-  const pat = BASS[spec.pat];
+  const pat = spec.grid || BASS[spec.pat];
   const out = [];
   const beats = c.beats;
   for (const [b, d, what] of pat) {
@@ -362,7 +362,7 @@ const COMP = {
 
 function compPart(c, spec) {
   const out = [];
-  const pat = COMP[spec.pat];
+  const pat = spec.grid || COMP[spec.pat];
   const center = spec.center ?? 66;
   const n = spec.n ?? 4;
   if (!pat) {
@@ -482,7 +482,7 @@ function fxPart(c, spec) {
 // ---- drums --------------------------------------------------------------------
 // Grids: player -> list of [beat, velocity, articulation?]. 'x' strings are 16ths.
 
-function grid(str, v = 0.6, unit = 0.25, a = 'hit') {
+export function grid(str, v = 0.6, unit = 0.25, a = 'hit') {
   const out = [];
   [...str].forEach((ch, k) => {
     if (ch === 'x') out.push([k * unit, v, a]);
@@ -909,7 +909,7 @@ function remixTheme(rng, theme, S, key, lo, hi) {
   return best;
 }
 
-const PART_FNS = { bass: bassPart, walk: walkPart, comp: compPart, pad: sectionPad, arp: arpPart, gliss: glissPart, sparkle: sparklePart, brass: brassPart, fx: fxPart };
+export const PART_FNS = { bass: bassPart, walk: walkPart, comp: compPart, pad: sectionPad, arp: arpPart, gliss: glissPart, sparkle: sparklePart, brass: brassPart, fx: fxPart };
 
 function songName(rng, names) {
   if (!names) return 'Untitled';

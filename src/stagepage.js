@@ -26,6 +26,12 @@ export function runPage(CONFIG) {
     volume: 0.9,
     sections: Object.fromEntries(CONFIG.sections.map(([k]) => [k, { level: 1, muted: false }])),
   };
+  // Extra choices a page may offer next to the style (the Pop Machine's riff
+  // and chord loop): each has its own tab of cards, an AUTO card and a URL parameter.
+  for (const o of CONFIG.options || []) {
+    const v = params.get(o.param);
+    state[o.key] = o.items.some((it) => it.id === v) ? v : 'auto';
+  }
 
   const ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'playback' });
   const bank = new SampleBank();
@@ -138,7 +144,23 @@ export function runPage(CONFIG) {
       };
       box.appendChild(b);
     }
+    for (const o of CONFIG.options || []) {
+      const ob = $('tab-' + o.tab);
+      if (!ob) continue;
+      ob.innerHTML = '';
+      for (const it of [{ id: 'auto', name: o.autoName || 'AUTO', desc: o.autoDesc || 'The machine chooses.' }, ...o.items]) {
+        const b = document.createElement('button');
+        b.className = 'card' + (state[o.key] === it.id ? ' on' : '');
+        b.innerHTML = `<b>${it.name}</b>${it.nick ? `<i class="nick">${it.nick}</i>` : ''}<small>${it.desc}</small>${it.tag ? `<div class="pd">${it.tag}</div>` : ''}`;
+        b.onclick = () => {
+          state[o.key] = it.id;
+          restart();
+        };
+        ob.appendChild(b);
+      }
+    }
     const pb = $('tab-pieces');
+    if (!pb) return;
     pb.innerHTML = '';
     for (const p of CONFIG.pieces) {
       const b = document.createElement('button');
@@ -153,6 +175,7 @@ export function runPage(CONFIG) {
   }
 
   function programName() {
+    if (CONFIG.programName) return CONFIG.programName(state);
     if (state.piece) return CONFIG.pieceBy[state.piece].name;
     return `${CONFIG.styles[state.style].name} No. ${state.seed % 1000}`;
   }
@@ -168,6 +191,7 @@ export function runPage(CONFIG) {
     else {
       q.set('style', state.style);
       q.set('seed', String(state.seed));
+      for (const o of CONFIG.options || []) if (state[o.key] !== 'auto') q.set(o.param, state[o.key]);
     }
     history.replaceState(null, '', `${location.pathname}?${q}`);
   }
@@ -236,6 +260,7 @@ export function runPage(CONFIG) {
       bits.push(`${Math.round(60 / q.spb)} BPM`);
       bits.push(`BAR ${i.bar}`);
       $('now-meta').textContent = bits.join(' · ');
+      CONFIG.onInfo?.(i, stage);
     }
     const buf = new Float32Array(orch.analyser.fftSize);
     orch.analyser.getFloatTimeDomainData(buf);
@@ -325,10 +350,10 @@ export function runPage(CONFIG) {
     document.querySelectorAll('.tabs button').forEach((b) =>
       b.addEventListener('click', () => {
         document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x === b));
-        for (const t of ['styles', 'pieces']) $('tab-' + t).hidden = t !== b.dataset.tab;
+        document.querySelectorAll('.tabs button').forEach((x) => ($('tab-' + x.dataset.tab).hidden = x !== b));
       }),
     );
-    if (state.piece) document.querySelector('[data-tab="pieces"]').dispatchEvent(new Event('click'));
+    if (state.piece) document.querySelector('[data-tab="pieces"]')?.dispatchEvent(new Event('click'));
 
     $('play').onclick = () => (playing ? stop() : play());
     $('new').onclick = () => {

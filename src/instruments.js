@@ -149,6 +149,16 @@ export const PRESETS = {
   bellArp: { kind: 'fm', ratio: 3.5, index: 1.2, modDecay: 0.4, amp: { a: 0.003, d: 1.1, s: 0, r: 0.6 }, gain: 0.198 },
   chipArp: { osc: [{ type: 'pulse12', gain: 1 }], filter: { freq: 6000, q: 0.3 }, amp: { a: 0.001, d: 0.05, s: 0.5, r: 0.02 }, gain: 0.13 },
   harp: { kind: 'fm', ratio: 2, index: 1.1, modDecay: 0.15, amp: { a: 0.002, d: 1.2, s: 0, r: 0.6 }, gain: 0.234 },
+
+  // Pop Machine (popmachine.html)
+  harpsi: { osc: [{ type: 'sawtooth', gain: 0.45 }, { type: 'square', oct: 1, gain: 0.25 }, { type: 'sawtooth', detune: 4, gain: 0.25 }], filter: { freq: 2600, q: 0.8, env: 5000, decay: 0.05 }, amp: { a: 0.001, d: 0.7, s: 0, r: 0.12 }, gain: 0.15 },
+  moogLead: { osc: [{ type: 'square', gain: 0.55 }, { type: 'sawtooth', detune: 4, gain: 0.35 }], filter: { freq: 900, q: 7, env: 3800, decay: 0.09 }, amp: { a: 0.002, d: 0.16, s: 0.3, r: 0.05 }, gain: 0.24 },
+  moogBass: { osc: [{ type: 'square', gain: 0.45 }, { type: 'sine', oct: -1, gain: 0.8 }], filter: { freq: 420, q: 4, env: 1600, decay: 0.1 }, amp: { a: 0.003, d: 0.2, s: 0.45, r: 0.05 }, gain: 0.46 },
+  pickBass: { osc: [{ type: 'sawtooth', gain: 0.45 }, { type: 'triangle', gain: 0.7 }], filter: { freq: 650, q: 1.2, env: 1500, decay: 0.09 }, amp: { a: 0.003, d: 0.5, s: 0.5, r: 0.08 }, gain: 0.46 },
+  supersaw: { osc: [{ type: 'sawtooth', detune: -19, gain: 0.3 }, { type: 'sawtooth', detune: -6, gain: 0.3 }, { type: 'sawtooth', detune: 7, gain: 0.3 }, { type: 'sawtooth', detune: 18, gain: 0.3 }, { type: 'sawtooth', oct: -1, gain: 0.2 }], filter: { freq: 2600, q: 0.8, env: 2400, decay: 0.25 }, amp: { a: 0.006, d: 0.3, s: 0.75, r: 0.18 }, gain: 0.12, vibrato: { rate: 5.5, depth: 8, delay: 0.3 } },
+  pumpPad: { osc: [{ type: 'sawtooth', detune: -12, gain: 0.35 }, { type: 'sawtooth', detune: 11, gain: 0.35 }, { type: 'triangle', oct: 1, gain: 0.2 }], filter: { freq: 2000, q: 0.6 }, amp: { a: 0.08, d: 0.3, s: 0.8, r: 0.06 }, gain: 0.11 },
+  popPiano: { kind: 'fm', ratio: 1, index: 2.4, modDecay: 0.3, amp: { a: 0.002, d: 1.3, s: 0.12, r: 0.3 }, gain: 0.2 },
+  edmPluck: { osc: [{ type: 'sawtooth', detune: -8, gain: 0.45 }, { type: 'sawtooth', detune: 8, gain: 0.45 }, { type: 'square', oct: 1, gain: 0.15 }], filter: { freq: 700, q: 2, env: 5200, decay: 0.1 }, amp: { a: 0.002, d: 0.3, s: 0.05, r: 0.15 }, gain: 0.22 },
 };
 
 // Plays one note. `out` is the channel input; returns nothing, cleans up after itself.
