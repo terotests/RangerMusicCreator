@@ -37,7 +37,7 @@ export const SYNTH_STYLES = {
     parts: [
       { fn: 'bass', i: 'bass', pat: 'drive8', a: 'sus' },
       { fn: 'comp', i: 'pad', center: 62, n: 3 },
-      { fn: 'arp', i: 'arp', unit: 0.25, shape: 'updown', lo: 60, span: 2, min: 0.45, legato: 0.8 },
+      { fn: 'arp', i: 'arp', unit: 0.25, shape: 'updown', lo: 52, span: 2, min: 0.45, legato: 0.8 },
       { fn: 'comp', i: 'str', center: 70, n: 3, min: 0.7 },
       { fn: 'comp', i: 'vox', center: 66, n: 3, min: 0.85 },
     ],
@@ -63,8 +63,8 @@ export const SYNTH_STYLES = {
     leadArt: { lead: 'soft' },
     parts: [
       { fn: 'bass', i: 'bass', pat: 'octave8', a: 'sus' },
-      { fn: 'brass', top: 'brass', low: 'brass', pat: 'stabs', p: 0.8, min: 0.4 },
-      { fn: 'arp', i: 'arp', unit: 0.5, shape: 'up', lo: 64, span: 2, min: 0.5, a: 'soft' },
+      { fn: 'brass', top: 'brass', low: 'brass', pat: 'stabs', p: 0.8, min: 0.4, center: 58 },
+      { fn: 'arp', i: 'arp', unit: 0.5, shape: 'up', lo: 55, span: 2, min: 0.5, a: 'soft' },
       { fn: 'comp', i: 'pad', center: 64, n: 3, min: 0.6 },
     ],
     drums: 'italo', lift: [1, 2],
@@ -85,7 +85,7 @@ export const SYNTH_STYLES = {
     parts: [
       { fn: 'bass', i: 'bass', pat: 'gallop', a: 'sus' },
       { fn: 'comp', i: 'pad', center: 60, n: 3 },
-      { fn: 'arp', i: 'arp', unit: 0.25, shape: 'pattern', lo: 62, span: 2, min: 0.5, legato: 0.6 },
+      { fn: 'arp', i: 'arp', unit: 0.25, shape: 'pattern', lo: 50, span: 2, min: 0.5, legato: 0.6 },
       { fn: 'comp', i: 'vox', center: 64, n: 3, min: 0.6, out: ['B'] },
       { fn: 'comp', i: 'brass', pat: 'push', center: 58, n: 3, min: 0.75 },
     ],
@@ -113,7 +113,7 @@ export const SYNTH_STYLES = {
       { fn: 'bass', i: 'bass', pat: 'dream', a: 'sus' },
       { fn: 'comp', i: 'ep', pat: 'ep', center: 62, n: 4 },
       { fn: 'comp', i: 'pad', a: 'soft', center: 66, n: 4 },
-      { fn: 'arp', i: 'arp', unit: 0.5, shape: 'updown', lo: 67, span: 2, min: 0.55, a: 'soft' },
+      { fn: 'arp', i: 'arp', unit: 0.5, shape: 'updown', lo: 55, span: 2, min: 0.55, a: 'soft' },
       { fn: 'comp', i: 'str', center: 72, n: 3, min: 0.75 },
     ],
     drums: 'dream', swing: 0.54, lift: [0, 2],

@@ -150,3 +150,21 @@ test('a muted section stays quiet', () => {
   const bars = song(c);
   for (const b of bars) for (const e of b.events) assert.ok(!['brass', 'rhythm'].includes(SPACE_SECTION_OF[e.i]), `${e.i} plays while muted`);
 });
+
+test('retro tunes: chord tones on long notes, chorus not above the verse', async () => {
+  const { SynthComposer, SYNTH_STYLE_IDS } = await import('../src/retro/synthwave.js');
+  const { pcs, chordAt } = await import('../src/jazz/theory.js');
+  const pc = (m) => ((m % 12) + 12) % 12;
+  for (const style of SYNTH_STYLE_IDS) for (let seed = 1; seed <= 10; seed++) {
+    const s = new SynthComposer({ style, seed }).song;
+    const avg = (k) => { const ms = s.sec[k].melody.flat().map((x) => x.m); return ms.reduce((a, b) => a + b, 0) / ms.length; };
+    assert.ok(avg('B') <= avg('A') + 4, `${style}/${seed}: chorus ${avg('B')} vs verse ${avg('A')}`);
+    for (const k of ['A', 'B']) s.sec[k].melody.forEach((bar, i) => {
+      for (const n of bar) if (n.d >= 1) {
+        const ch = chordAt(s.sec[k].chords[i], n.b);
+        const t = [...pcs(s.key, ch).slice(0, 3), ...(s.S.add9 ? [(s.key + ch.r + 2) % 12] : [])];
+        assert.ok(t.includes(pc(n.m)), `${style}/${seed} ${k}${i}: long note ${n.m} not in chord`);
+      }
+    });
+  }
+});
