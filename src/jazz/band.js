@@ -146,6 +146,8 @@ export const BIGBAND_BAND = {
   sections: BB_SECTIONS.map(([k]) => k),
   release: { reeds: 0.16, trumpets: 0.14, trombones: 0.16, piano: 0.25, rhythm: 0.1 },
   shortRelease: { piano: 0.2, trumpets: 0.08, trombones: 0.09, reeds: 0.08 },
+  // Swing-era reeds sang with vibrato; held clarinet chords without it drone like a harmonium.
+  vibrato: { reeds: { rate: 5.3, depth: 9, delay: 0.16 } },
   seats: {
     cl: { pan: -0.1, depth: 0.25, gain: 0.55 },
     bn: { pan: 0.2, depth: 0.3, gain: 0.5 },

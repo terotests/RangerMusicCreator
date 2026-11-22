@@ -395,6 +395,20 @@ export class Orchestra {
         end = t0 + Math.max(attack, hold) + rel * 2.5;
         if (!src.loop) end = Math.min(end, t0 + (buf.duration - off) / rate);
       }
+      // Section vibrato on held notes (each player at their own speed), so a
+      // chord of straight-toned samples does not drone like a reed organ.
+      const vib = B.vibrato?.[section];
+      if (vib && sustained && dur > vib.delay + 0.2) {
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = vib.rate * (0.9 + Math.random() * 0.2);
+        const depth = ctx.createGain();
+        depth.gain.setValueAtTime(0, t0);
+        depth.gain.setValueAtTime(0, t0 + vib.delay);
+        depth.gain.linearRampToValueAtTime(vib.depth, t0 + vib.delay + 0.35);
+        lfo.connect(depth).connect(src.detune);
+        lfo.start(t0);
+        lfo.stop(end + 0.02);
+      }
       src.connect(g).connect(pl.input);
       src.start(t0, off);
       src.stop(end + 0.02);
