@@ -60,6 +60,51 @@ Finland and the EU) and it was published before 1930 (free in the US).
 | MORNING MOOD | Edvard Grieg, Peer Gynt (1875) | Composer died 1907 |
 | SWAN LAKE | P. I. Tchaikovsky, Swan Lake (1876) | Composer died 1893 |
 
+### Repertoire: works played from the score
+
+The CLASSICS tab lists these works by composer. Each is played note for note
+from a MIDI file made with LilyPond from a [Mutopia Project](https://www.mutopiaproject.org/)
+edition (`scripts/build-scores.py`, sources from
+[github.com/MutopiaProject/MutopiaProject](https://github.com/MutopiaProject/MutopiaProject)),
+and arranged at play time for the piano, the strings or the full orchestra
+(`src/symphony/repertoire.js`). The compositions are public domain. Most
+editions are public domain too; the ones marked CC BY-SA 3.0 are free to use
+with credit to their typesetter, and the MIDI files made from them carry the
+same licence. Only the notes of those editions are used.
+
+| Work | Composer and source | Score | Public domain because |
+| --- | --- | --- | --- |
+| AIR ON THE G STRING | J. S. Bach, Orchestral Suite No. 3 in D, BWV 1068: Air (c. 1730) | `scores/bach-air.mid`, Mutopia `ftp/BachJS/BWV1068/bach-air` (Mutopia-2008/10/28-242), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), typeset by Jeff Covey | Composer died 1750 |
+| PRELUDE IN C MAJOR | J. S. Bach, The Well-Tempered Clavier I, BWV 846 (1722) | `scores/bach-prelude-c.mid`, Mutopia `ftp/BachJS/BWV846/wtk1-prelude1` (Mutopia-2011/09/12-5), public domain | Composer died 1750 |
+| TOCCATA AND FUGUE IN D MINOR | J. S. Bach, Organ, BWV 565 | `scores/bach-toccata.mid`, Mutopia `ftp/BachJS/BWV565/ToccataFugue` (Mutopia-2011/09/11-1780), public domain | Composer died 1750 |
+| SHEEP MAY SAFELY GRAZE | J. S. Bach, Hunting Cantata, BWV 208: aria (1713) | `scores/bach-sheep.mid`, Mutopia `ftp/BachJS/BWV208/Sheep` (Mutopia-2011/10/25-1794), public domain | Composer died 1750 |
+| DOUBLE VIOLIN CONCERTO | J. S. Bach, Concerto for Two Violins in D minor, BWV 1043: Vivace | `scores/bach-double.mid`, Mutopia `ftp/BachJS/BWV1043/concerto-in-d-minor` (Mutopia-2015/09/02-3), public domain | Composer died 1750 |
+| BRANDENBURG CONCERTO NO. 5 | J. S. Bach, BWV 1050: Allegro (1721) | `scores/bach-brandenburg5.mid`, Mutopia `ftp/BachJS/BWV1050/brand5-3` (Mutopia-2015/09/29-548), public domain | Composer died 1750 |
+| MINUET IN G | J. S. Bach, Notebook for Anna Magdalena Bach, BWV Anh. 114 (1725; by Christian Petzold) | `scores/bach-minuet-g.mid`, Mutopia `ftp/BachJS/BWVAnh114/anna-magdalena-04` (Mutopia-2017/01/19-75), public domain | Composer died 1750 |
+| INVENTION NO. 1 | J. S. Bach, Two-Part Invention in C, BWV 772 (1723) | `scores/bach-invention1.mid`, Mutopia `ftp/BachJS/BWV772/bach-invention-01` (Mutopia-2008/06/15-40), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), typeset by Jeff Covey | Composer died 1750 |
+| SPRING · ALLEGRO | Antonio Vivaldi, The Four Seasons, Op. 8 No. 1, RV 269 (1725) | `scores/vivaldi-spring-1.mid`, Mutopia `ftp/VivaldiA/O8/spring` (Mutopia-2010/02/08-301), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), typeset by a Mutopia contributor | Composer died 1741 |
+| SUMMER · PRESTO | Antonio Vivaldi, The Four Seasons, Op. 8 No. 2, RV 315 (1725) | `scores/vivaldi-summer-3.mid`, Mutopia `ftp/VivaldiA/O8/summer` (Mutopia-2010/02/08-336), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), typeset by a Mutopia contributor | Composer died 1741 |
+| AUTUMN · ALLEGRO | Antonio Vivaldi, The Four Seasons, Op. 8 No. 3, RV 293 (1725) | `scores/vivaldi-autumn-1.mid`, Mutopia `ftp/VivaldiA/O8/autumn` (Mutopia-2010/02/08-350), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), typeset by a Mutopia contributor | Composer died 1741 |
+| WINTER · ALLEGRO NON MOLTO | Antonio Vivaldi, The Four Seasons, Op. 8 No. 4, RV 297 (1725) | `scores/vivaldi-winter-1.mid`, Mutopia `ftp/VivaldiA/O8/winter` (Mutopia-2010/02/08-351), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), typeset by a Mutopia contributor | Composer died 1741 |
+| WINTER · LARGO | Antonio Vivaldi, The Four Seasons, Op. 8 No. 4, RV 297 (1725) | `scores/vivaldi-winter-2.mid`, Mutopia `ftp/VivaldiA/O8/winter` (Mutopia-2010/02/08-351), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), typeset by a Mutopia contributor | Composer died 1741 |
+| NOCTURNE IN E-FLAT | Frédéric Chopin, Op. 9 No. 2 (1832) | `scores/chopin-nocturne-9-2.mid`, Mutopia `ftp/ChopinFF/O9/chopin_nocturne_op9_n2` (Mutopia-2014/12/18-1590), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), typeset by Renato Biolcati Rinaldi | Composer died 1849 |
+| PRELUDE IN E MINOR | Frédéric Chopin, Op. 28 No. 4 (1839) | `scores/chopin-prelude-4.mid`, Mutopia `ftp/ChopinFF/O28/Chop-28-4` (Mutopia-2016/10/28-468), public domain | Composer died 1849 |
+| “RAINDROP” PRELUDE | Frédéric Chopin, Op. 28 No. 15 in D-flat (1839) | `scores/chopin-prelude-15.mid`, Mutopia `ftp/ChopinFF/O28/Chop-28-15` (Mutopia-2015/01/16-471), public domain | Composer died 1849 |
+| PRELUDE IN A MAJOR | Frédéric Chopin, Op. 28 No. 7 (1839) | `scores/chopin-prelude-7.mid`, Mutopia `ftp/ChopinFF/O28/Chop-28-7` (Mutopia-2015/01/17-470), public domain | Composer died 1849 |
+| “MINUTE” WALTZ | Frédéric Chopin, Waltz in D-flat, Op. 64 No. 1 (1847) | `scores/chopin-waltz-64-1.mid`, Mutopia `ftp/ChopinFF/O64/chopin_valse_op64_no1` (Mutopia-2015/01/17-483), public domain | Composer died 1849 |
+| WALTZ IN B MINOR | Frédéric Chopin, Op. 69 No. 2 (1829, published 1852) | `scores/chopin-waltz-69-2.mid`, Mutopia `ftp/ChopinFF/O69/w10-h-moll-cfi` (Mutopia-2013/03/23-511), public domain | Composer died 1849 |
+| FANTAISIE-IMPROMPTU | Frédéric Chopin, Op. 66 in C-sharp minor (1834, published 1855) | `scores/chopin-fantaisie.mid`, Mutopia `ftp/ChopinFF/O66/chopin_fantaisie-impromptu` (Mutopia-2009/09/05-1693), public domain | Composer died 1849 |
+| “REVOLUTIONARY” ÉTUDE | Frédéric Chopin, Étude in C minor, Op. 10 No. 12 (1831) | `scores/chopin-revolutionary.mid`, Mutopia `ftp/ChopinFF/O10/op-10-12-wfi` (Mutopia-2018/05/15-743), public domain | Composer died 1849 |
+| EINE KLEINE NACHTMUSIK | W. A. Mozart, Serenade in G, K. 525: Allegro (1787) | `scores/mozart-nachtmusik.mid`, Mutopia `ftp/MozartWA/KV525/eine-kleine-nachtmusik-mvt1` (Mutopia-2007/01/01-900), public domain | Composer died 1791 |
+| FÜR ELISE | L. van Beethoven, Bagatelle in A minor, WoO 59 (1810) | `scores/beethoven-elise.mid`, Mutopia `ftp/BeethovenLv/WoO59/fur_Elise_WoO59` (Mutopia-2015/08/18-931), public domain | Composer died 1827 |
+| CLAIR DE LUNE | Claude Debussy, Suite bergamasque (1905) | `scores/debussy-clair.mid`, Mutopia `ftp/DebussyC/L75/debussy_Ste_Bergamesq_Clair` (Mutopia-2010/12/21-1778), public domain | Composer died 1918 |
+| ARABESQUE NO. 1 | Claude Debussy, Deux arabesques (1891) | `scores/debussy-arabesque-1.mid`, Mutopia `ftp/DebussyC/L66/debussy_Arabesque_1` (Mutopia-2011/10/25-1777), public domain | Composer died 1918 |
+| GYMNOPÉDIE NO. 1 | Erik Satie, Trois Gymnopédies (1888) | `scores/satie-gymnopedie-1.mid`, Mutopia `ftp/SatieE/gymnopedie_1` (Mutopia-2014/12/14-37), public domain | Composer died 1925 |
+
+| What | Source | Licence |
+| --- | --- | --- |
+| Concert grand (`samples/grand/`: Steinway Model B, whole-tone steps from A#0 to G#7, three velocity layers) | [Versilian Community Sample Library](https://github.com/sgossner/VCSL) by Versilian Studios, `Chordophones/Zithers/Grand Piano, Steinway B/Sus`. Trimmed and converted to MP3 by `scripts/build-piano-samples.py`. | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+
 Not included: Jean Sibelius (died 1957) is protected in Finland until the
 end of 2027, so Finlandia and the rest wait until 1 January 2028. Film music
 (John Williams and others) is protected; the scenes only follow the general

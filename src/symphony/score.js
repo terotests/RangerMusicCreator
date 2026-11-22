@@ -81,6 +81,8 @@ export function parseScore(buffer) {
   const tempos = [];
   const tracks = [];
   let title = null;
+  let meter = null;
+  const pedalEvents = [];
   for (let t = 0; t < ntracks && p + 8 <= buffer.byteLength; t++) {
     if (str(p, 4) !== 'MTrk') break;
     const len = d.getUint32(p + 4);
@@ -92,6 +94,9 @@ export function parseScore(buffer) {
     const open = new Map();
     const vol = new Array(16).fill(100);
     const expr = new Array(16).fill(127);
+    const close = (k, o, t1) => {
+      tr.notes.push({ ch: o.ch, m: o.m, t0: o.tick, t1: Math.max(t1, o.tick + 1), v: Math.min(1, o.v) });
+    };
     const readVlq = () => {
       let v = 0;
       let b;
@@ -113,6 +118,7 @@ export function parseScore(buffer) {
       if (status === 0xff) {
         const meta = d.getUint8(q++);
         const l = readVlq();
+        if (meta === 0x58 && l >= 2 && !meter) meter = { num: d.getUint8(q), den: 2 ** d.getUint8(q + 1), tick };
         if (meta === 0x51 && l === 3) tempos.push({ tick, us: (d.getUint8(q) << 16) | (d.getUint8(q + 1) << 8) | d.getUint8(q + 2) });
         if (meta === 0x03 || meta === 0x04) {
           const s = new TextDecoder().decode(new Uint8Array(buffer, q, l)).trim();
@@ -126,29 +132,62 @@ export function parseScore(buffer) {
         const n = d.getUint8(q++);
         const v = d.getUint8(q++);
         const k = ch * 128 + n;
-        if (type === 0x90 && v > 0) open.set(k, { tick, v: (v / 127) * (vol[ch] / 127) * (expr[ch] / 127) * 1.25 });
-        else if (open.has(k)) {
+        if (type === 0x90 && v > 0) {
+          if (open.has(k)) close(k, open.get(k), tick);
+          open.set(k, { ch, m: n, tick, v: (v / 127) * (vol[ch] / 127) * (expr[ch] / 127) * 1.25 });
+        } else if (open.has(k)) {
           const o = open.get(k);
-          tr.notes.push({ ch, m: n, t0: o.tick, t1: Math.max(tick, o.tick + 1), v: Math.min(1, o.v) });
           open.delete(k);
+          close(k, o, tick);
         }
       } else if (type === 0xb0) {
         const c = d.getUint8(q++);
         const v = d.getUint8(q++);
         if (c === 7) vol[ch] = v;
         if (c === 11) expr[ch] = v;
+        if (c === 64) pedalEvents.push({ tick, down: v >= 64 });
       } else if (type === 0xc0) {
         tr.programs[ch] ??= d.getUint8(q);
         q += 1;
       } else if (type === 0xd0) q += 1;
       else q += 2;
     }
+    for (const [k, o] of open) close(k, o, tick);
+    tr.notes.sort((a, b) => a.t0 - b.t0 || a.m - b.m);
     if (tr.notes.length) tracks.push(tr);
     p = 8 + len + p;
   }
+  applyPedal(tracks, pedalEvents);
   tempos.sort((a, b) => a.tick - b.tick);
   if (!tempos.length || tempos[0].tick > 0) tempos.unshift({ tick: 0, us: 500000 });
-  return { title, ppq, tempos, tracks };
+  return { title, ppq, tempos, tracks, meter: meter || { num: 4, den: 4, tick: 0 } };
+}
+
+// Sustain pedal (written in any track, usually the left hand's): a key let go
+// while the pedal is down rings until the pedal comes up, or until the same key
+// is struck again. The key-up time stays in `k1` for instruments without a pedal.
+function applyPedal(tracks, events) {
+  if (!events.length) return;
+  events.sort((a, b) => a.tick - b.tick);
+  const spans = [];
+  let from = null;
+  for (const e of events) {
+    if (e.down && from == null) from = e.tick;
+    else if (!e.down && from != null) spans.push([from, e.tick]), (from = null);
+  }
+  if (from != null) spans.push([from, Infinity]);
+  for (const tr of tracks) {
+    const next = new Map();
+    for (let j = tr.notes.length - 1; j >= 0; j--) {
+      const n = tr.notes[j];
+      const again = next.get(n.m) ?? Infinity;
+      next.set(n.m, n.t0);
+      const sp = spans.find(([a, b]) => a < n.t1 && n.t1 < b);
+      if (!sp) continue;
+      const end = Math.min(sp[1], again);
+      if (end > n.t1 && end !== Infinity) n.k1 = n.t1, (n.t1 = end);
+    }
+  }
 }
 
 // Assign every note a player and articulation; returns { title, notes, parts }.
@@ -192,17 +231,25 @@ export function orchestrateScore(score) {
   return { title: score.title, notes, parts };
 }
 
-// Bar-by-bar playback of an orchestrated score (4 quarter notes a bar).
+// Bar-by-bar playback of an orchestrated score. Options: `arrange(score)`
+// returns the notes with their players instead of orchestrateScore (see
+// repertoire.js), `bpm` sets the opening tempo (the tempo map is scaled to
+// it; LilyPond writes 60 when a source has no metronome mark).
 export class MidiScore {
-  constructor(buffer, name = 'MIDI SCORE') {
+  constructor(buffer, name = 'MIDI SCORE', { arrange = null, bpm = null, title = null, label = null } = {}) {
     const score = parseScore(buffer);
-    const o = orchestrateScore(score);
+    const o = arrange ? { title, notes: arrange(score).sort((x, y) => x.t0 - y.t0), parts: [] } : orchestrateScore(score);
     this.ppq = score.ppq;
-    this.tempos = score.tempos;
+    const scale = bpm ? bpm / (60000000 / score.tempos[0].us) : 1;
+    this.tempos = score.tempos.map((t) => ({ tick: t.tick, us: t.us / scale }));
     this.notes = o.notes;
     this.parts = o.parts;
-    this.name = (o.title || name).toUpperCase().slice(0, 40);
-    this.barTicks = this.ppq * 4;
+    this.name = (title || o.title || name).toUpperCase().slice(0, 40);
+    this.meter = score.meter;
+    this.label = label;
+    // Bars follow the time signature; the music itself is timed in quarters.
+    this.beatsPerBar = (score.meter.num * 4) / score.meter.den;
+    this.barTicks = Math.round(this.ppq * this.beatsPerBar);
     this.lastTick = Math.max(0, ...this.notes.map((n) => n.t1));
     this.bar = 0;
     this.tempo = 1;
@@ -235,11 +282,14 @@ export class MidiScore {
       let a = n.a;
       if (a === 'sus' && dur * spb < 0.2) a = ['vln1', 'vln2', 'vla', 'vc'].includes(n.i) ? 'spic' : n.i === 'cb' ? 'pizz' : ['hn', 'tp', 'tb'].includes(n.i) ? 'stac' : 'sus';
       let m = n.m;
-      if (m != null && RANGE[n.i]) while (m < RANGE[n.i][0] - 2) m += 12;
+      if (m != null && RANGE[n.i]) {
+        while (m < RANGE[n.i][0] - 2) m += 12;
+        while (m > RANGE[n.i][1] + 2) m -= 12;
+      }
       const v = Math.min(1, n.v * (0.6 + 0.8 * this.intensity));
       events.push({ i: n.i, a, b, d: dur, m, v });
     }
     this.bar++;
-    return { beats: 4, bpm: bpm * this.tempo, events, info: { section: 'score', bar: this.bar, chord: '', key: '', name: this.name, e: this.intensity } };
+    return { beats: this.beatsPerBar, bpm: bpm * this.tempo, events, info: { section: this.label || 'score', bar: this.bar, chord: '', key: '', name: this.name, e: this.intensity } };
   }
 }

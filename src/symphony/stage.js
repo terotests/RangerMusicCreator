@@ -5,9 +5,9 @@
 import { SEATS } from './orchestra.js';
 import { SECTION_OF } from './composer.js';
 
-const COUNT = { vln1: 8, vln2: 7, vla: 6, vc: 5, cb: 3, harp: 1, fl: 2, ob: 2, cl: 2, bn: 2, hn: 4, tp: 3, tb: 3, tu: 1, timp: 1, cym: 1, bd: 1, sn: 1, gong: 1, tri: 1, glock: 1 };
-const HUE = { strings: [255, 196, 120], brass: [255, 220, 110], winds: [170, 230, 160], perc: [255, 140, 120], harp: [150, 210, 255] };
-const LABEL = { vln1: 'VIOLINS I', vln2: 'VIOLINS II', vla: 'VIOLAS', vc: 'CELLOS', cb: 'BASSES', harp: 'HARP', fl: 'FLUTES', ob: 'OBOES', cl: 'CLARINETS', bn: 'BASSOONS', hn: 'HORNS', tp: 'TRUMPETS', tb: 'TROMBONES', tu: 'TUBA', timp: 'TIMPANI', glock: 'BELLS', gong: 'GONG' };
+const COUNT = { pno: 1, vln1: 8, vln2: 7, vla: 6, vc: 5, cb: 3, harp: 1, fl: 2, ob: 2, cl: 2, bn: 2, hn: 4, tp: 3, tb: 3, tu: 1, timp: 1, cym: 1, bd: 1, sn: 1, gong: 1, tri: 1, glock: 1 };
+const HUE = { strings: [255, 196, 120], brass: [255, 220, 110], winds: [170, 230, 160], perc: [255, 140, 120], harp: [150, 210, 255], piano: [255, 236, 200] };
+const LABEL = { pno: 'PIANO', vln1: 'VIOLINS I', vln2: 'VIOLINS II', vla: 'VIOLAS', vc: 'CELLOS', cb: 'BASSES', harp: 'HARP', fl: 'FLUTES', ob: 'OBOES', cl: 'CLARINETS', bn: 'BASSOONS', hn: 'HORNS', tp: 'TRUMPETS', tb: 'TROMBONES', tu: 'TUBA', timp: 'TIMPANI', glock: 'BELLS', gong: 'GONG' };
 
 export class Stage {
   constructor(canvas) {
@@ -136,6 +136,29 @@ export class Stage {
         glow.addColorStop(1, `rgba(${r},${gg},${b},0)`);
         g.fillStyle = glow;
         g.fillRect(s.x - 40, s.y - 40, 80, 80);
+      }
+      // The grand piano: a black case with its lid up, the pianist at the keys.
+      if (s.p === 'pno') {
+        const px = s.x - rad * 0.5;
+        const py = s.y - rad * 1.2;
+        g.fillStyle = '#060303';
+        g.strokeStyle = `rgba(231,192,106,${0.35 + a * 0.6})`;
+        g.lineWidth = 1.5;
+        g.beginPath();
+        g.moveTo(px + rad * 1.2, py - rad * 0.8);
+        g.lineTo(px + rad * 9, py - rad * 0.4);
+        g.quadraticCurveTo(px + rad * 10.5, py + rad * 1.4, px + rad * 6, py + rad * 2.2);
+        g.lineTo(px + rad * 1.2, py + rad * 2);
+        g.closePath();
+        g.fill();
+        g.stroke();
+        g.beginPath();
+        g.moveTo(px + rad * 1.4, py - rad * 0.8);
+        g.lineTo(px + rad * 7.5, py - rad * 4.2);
+        g.lineTo(px + rad * 9, py - rad * 0.4);
+        g.stroke();
+        g.fillStyle = `rgba(246,234,210,${0.5 + a * 0.5})`;
+        g.fillRect(px + rad * 0.6, py - rad * 0.6, rad * 0.6, rad * 2.4);
       }
       // chair
       g.fillStyle = 'rgba(20,8,4,0.8)';

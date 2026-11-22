@@ -8,6 +8,8 @@
 import { SECTION_OF } from './composer.js';
 
 export const SAMPLE_ROOT = 'samples/vsco2/';
+// The symphony page loads the orchestra and the grand piano.
+export const SYMPHONY_SOURCES = [{ root: SAMPLE_ROOT }, { root: 'samples/grand/' }];
 
 // Player -> articulation -> sample set (first one that exists wins).
 const SETS = {
@@ -26,6 +28,8 @@ const SETS = {
   harp: { hit: ['harp'] },
   glock: { hit: ['glock'] },
   timp: { hit: ['timp'], roll: ['timp_roll'] },
+  // The concert grand (samples/grand, CC0 VCSL Steinway B).
+  pno: { hit: ['piano'], sus: ['piano'] },
 };
 SETS.vln2 = SETS.vln1;
 
@@ -40,6 +44,7 @@ const HITS = {
 
 // Seating: pan (-1 left .. 1 right), depth (0 front .. 1 back), level trim.
 export const SEATS = {
+  pno: { pan: -0.3, depth: 0.0, gain: 1.0, row: 0 },
   vln1: { pan: -0.55, depth: 0.05, gain: 0.85, row: 0 },
   vln2: { pan: -0.22, depth: 0.12, gain: 0.75, row: 0 },
   vla: { pan: 0.18, depth: 0.12, gain: 0.85, row: 0 },
@@ -118,8 +123,8 @@ export class SampleBank {
 
 // The symphony orchestra; other bands pass their own (see src/jazz/band.js).
 export const SYMPHONY_BAND = {
-  seats: SEATS, sets: SETS, hits: HITS, sectionOf: SECTION_OF, sections: ['strings', 'brass', 'winds', 'perc', 'harp'],
-  ring: RING, release: RELEASE, ensemble: ['strings'], kit: {}, synth: {}, setGain: {}, fx: {},
+  seats: SEATS, sets: SETS, hits: HITS, sectionOf: SECTION_OF, sections: ['strings', 'brass', 'winds', 'perc', 'harp', 'piano'],
+  ring: RING, release: RELEASE, shortRelease: { piano: 0.32 }, ensemble: ['strings'], kit: {}, synth: {}, setGain: { piano: 1.45 }, fx: {},
 };
 
 export class Orchestra {

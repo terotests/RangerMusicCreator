@@ -63,7 +63,22 @@ classics, with a real sampled orchestra.
   theme. The themes follow the habits of large film scores (rising fifth and
   octave openings, motif and sequence, Lydian and mediant harmony); they do
   not copy any film's music.
-- **CLASSICS**: The Blue Danube, Also sprach Zarathustra (the sunrise), a Mars
+- **CLASSICS** by composer: **Bach** (Air on the G String, Prelude in C,
+  Toccata and Fugue in D minor, Sheep May Safely Graze, the Double Violin
+  Concerto, Brandenburg 5, Minuet in G, Invention 1), **Vivaldi** (Spring,
+  Summer presto, Autumn, Winter and its Largo from the Four Seasons),
+  **Chopin** (Nocturne Op. 9/2, three preludes including the Raindrop, the
+  Minute Waltz, Waltz in B minor, Fantaisie-Impromptu, Revolutionary Étude),
+  **Mozart** (Eine kleine Nachtmusik), **Beethoven** (Für Elise), **Debussy**
+  (Clair de lune, Arabesque 1) and **Satie** (Gymnopédie 1). They are played
+  note for note from Mutopia Project scores rendered to MIDI with LilyPond
+  (`scripts/build-scores.py`, files in `scores/`), and each card offers
+  **PIANO**, **STRINGS** and **ORCHESTRA** arrangements, the composer's own
+  first (`src/symphony/repertoire.js`). The piano is a CC0 Steinway Model B
+  from the Versilian Community Sample Library (`samples/grand/`, 6 MB, built by
+  `scripts/build-piano-samples.py`); the sustain pedal in the scores is played.
+  Link: `symphony.html?work=chopin-nocturne-9-2&arr=piano`.
+- Under **MORE**: The Blue Danube, Also sprach Zarathustra (the sunrise), a Mars
   build over Holst's 5/4 rhythm, Ode to Joy, the New World Largo, In the Hall of
   the Mountain King (which speeds up as it goes), Morning Mood and Swan Lake,
   arranged here (see LICENSES.md).
@@ -73,7 +88,7 @@ classics, with a real sampled orchestra.
 - Controls: **TEMPO**, **INTENSITY** with **AUTO SHAPE** (the form builds and
   relaxes by itself, or stays where you set it), **HALL SIZE** (studio to
   cathedral, 1.2–4.8 s) and **HALL MIX**, and a fader with mute for strings,
-  woodwinds, brass, percussion and harp & bells (a muted section hands its
+  woodwinds, brass, percussion, harp & bells and piano (a muted section hands its
   melody to another one). **CLIMAX!** jumps to the climax, **ENDING** plays the
   ending and stops, **NEW THEME** writes a new one.
 - **SAVE WAV** renders the piece (or one full cycle of a theme) offline,
