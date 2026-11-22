@@ -6,7 +6,7 @@
 import { SymphonyComposer, MOODS, MOOD_IDS, CLASSICS } from './composer.js';
 import { CLASSIC_BY_ID } from './classics.js';
 import { Orchestra, SampleBank, SYMPHONY_SOURCES } from './orchestra.js';
-import { COMPOSERS, ARRANGEMENTS, WORKS, WORK_BY_ID, arrangeWork, scoreUrl } from './repertoire.js';
+import { COMPOSERS, ARRANGEMENTS, WORKS, WORK_BY_ID, arrangeWork, scoreUrl, tempoShape } from './repertoire.js';
 import { MidiScore } from './score.js';
 import { Stage } from './stage.js';
 import { encodeWav, download } from '../recorder.js';
@@ -71,7 +71,7 @@ function avail() {
 function makeSource(fresh = false) {
   if (state.work && scoreCache.has(state.work)) {
     const w = WORK_BY_ID[state.work];
-    const s = new MidiScore(scoreCache.get(w.id), w.name, { arrange: (score) => arrangeWork(score, w, state.arr), bpm: w.bpm, title: w.name, label: ARRANGEMENTS[state.arr].name });
+    const s = new MidiScore(scoreCache.get(w.id), w.name, { arrange: (score) => arrangeWork(score, w, state.arr), bpm: w.bpm, title: w.name, label: ARRANGEMENTS[state.arr].name, rubato: tempoShape(w, state.arr) });
     s.tempo = state.tempo;
     s.intensity = state.intensity;
     return s;

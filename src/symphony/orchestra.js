@@ -360,7 +360,8 @@ export class Orchestra {
     const buf = this.bank.buffers.get(s.f);
     const ring = B.ring.has(ev.i) || ev.a === 'fall';
     const sustained = ev.a === 'sus' || ev.a === 'trem' || ev.a === 'roll' || ev.a === 'swell' || ev.a === 'mute' || ev.a === 'vib';
-    const rel = ring ? 0.12 : sustained ? B.release[section] || 0.25 : B.shortRelease?.[section] ?? 0.12;
+    // Legato: a note that the next one takes over lets go fast; the next one starts inside its sample, without a new attack.
+    const rel = ev.legOut && sustained ? 0.07 : ring ? 0.12 : sustained ? B.release[section] || 0.25 : B.shortRelease?.[section] ?? 0.12;
     const voices = B.ensemble.includes(section) && sustained && ev.i !== 'cb' ? 2 : 1;
     for (let k = 0; k < voices; k++) {
       let smp = s;
@@ -381,12 +382,13 @@ export class Orchestra {
       }
       // Skip the silent or breathy lead-in of slow-speaking samples so the
       // note sounds on the beat (offset measured by scripts/measure-onsets.py).
-      const off = B.useOnset && !ring ? Math.min(smp.o || 0, src.loop ? smp.loop[0] : buf.duration / 2) : 0;
+      let off = B.useOnset && !ring ? Math.min(smp.o || 0, src.loop ? smp.loop[0] : buf.duration / 2) : 0;
+      if (ev.leg && sustained && !ring) off = Math.min(0.09, src.loop ? smp.loop[0] : buf.duration / 3);
       const g = ctx.createGain();
       const lvl = (0.03 + 0.97 * Math.pow(v, 1.9)) * (k ? 0.55 : 1) * gain;
       const lvl2 = (0.03 + 0.97 * Math.pow(v2, 1.9)) * (k ? 0.55 : 1) * gain;
       const t0 = t + k * 0.011;
-      const attack = sustained && !ring ? (ev.a === 'swell' || ev.a === 'roll' || ev.v2 != null ? 0.05 : 0.018 + (1 - v) * 0.06) : 0.002;
+      const attack = ev.leg && sustained ? 0.014 : sustained && !ring ? (ev.a === 'swell' || ev.a === 'roll' || ev.v2 != null ? 0.05 : 0.018 + (1 - v) * 0.06) : 0.002;
       g.gain.setValueAtTime(0, t0);
       g.gain.linearRampToValueAtTime(lvl, t0 + attack);
       if (ev.v2 != null) g.gain.linearRampToValueAtTime(lvl2, t0 + dur);

@@ -63,3 +63,15 @@ test('the grand piano samples are all there', () => {
   assert.ok(map.piano.samples.length >= 120);
   for (const s of map.piano.samples) assert.ok(existsSync(new URL('../samples/grand/' + s.f, import.meta.url)), s.f);
 });
+
+test('interpretation: a nocturne sings over a lighter left hand, a string line is bowed legato', () => {
+  const noct = WORKS.find((x) => x.id === 'chopin-nocturne-9-2');
+  const p = arrangeBytes(bytes(noct), noct, 'piano');
+  const lead = p.filter((n) => n.lead);
+  const rest = p.filter((n) => !n.lead && n.m < 60);
+  const mean = (ns) => ns.reduce((s, n) => s + n.v, 0) / ns.length;
+  assert.ok(mean(lead) > mean(rest) * 1.3, `${mean(lead)} vs ${mean(rest)}`);
+  const spring = WORKS.find((x) => x.id === 'vivaldi-spring-1');
+  const s = arrangeBytes(bytes(spring), spring, 'strings');
+  assert.ok(s.filter((n) => n.leg).length > s.length * 0.5);
+});

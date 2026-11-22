@@ -166,7 +166,7 @@ export function parseScore(buffer) {
 // Sustain pedal (written in any track, usually the left hand's): a key let go
 // while the pedal is down rings until the pedal comes up, or until the same key
 // is struck again. The key-up time stays in `k1` for instruments without a pedal.
-function applyPedal(tracks, events) {
+export function applyPedal(tracks, events) {
   if (!events.length) return;
   events.sort((a, b) => a.tick - b.tick);
   const spans = [];
@@ -236,7 +236,7 @@ export function orchestrateScore(score) {
 // repertoire.js), `bpm` sets the opening tempo (the tempo map is scaled to
 // it; LilyPond writes 60 when a source has no metronome mark).
 export class MidiScore {
-  constructor(buffer, name = 'MIDI SCORE', { arrange = null, bpm = null, title = null, label = null } = {}) {
+  constructor(buffer, name = 'MIDI SCORE', { arrange = null, bpm = null, title = null, label = null, rubato = null } = {}) {
     const score = parseScore(buffer);
     const o = arrange ? { title, notes: arrange(score).sort((x, y) => x.t0 - y.t0), parts: [] } : orchestrateScore(score);
     this.ppq = score.ppq;
@@ -247,6 +247,7 @@ export class MidiScore {
     this.name = (title || o.title || name).toUpperCase().slice(0, 40);
     this.meter = score.meter;
     this.label = label;
+    this.rubato = rubato;
     // Bars follow the time signature; the music itself is timed in quarters.
     this.beatsPerBar = (score.meter.num * 4) / score.meter.den;
     this.barTicks = Math.round(this.ppq * this.beatsPerBar);
@@ -272,7 +273,7 @@ export class MidiScore {
       return null;
     }
     const end = start + this.barTicks;
-    const bpm = this.bpmAt(start);
+    const bpm = this.bpmAt(start) * (this.rubato ? this.rubato(this.bar, Math.ceil(this.lastTick / this.barTicks)) : 1);
     const spb = 60 / (bpm * this.tempo);
     const events = [];
     while (this.idx < this.notes.length && this.notes[this.idx].t0 < end) {
@@ -280,14 +281,17 @@ export class MidiScore {
       const b = (n.t0 - start) / this.ppq;
       const dur = (n.t1 - n.t0) / this.ppq;
       let a = n.a;
-      if (a === 'sus' && dur * spb < 0.2) a = ['vln1', 'vln2', 'vla', 'vc'].includes(n.i) ? 'spic' : n.i === 'cb' ? 'pizz' : ['hn', 'tp', 'tb'].includes(n.i) ? 'stac' : 'sus';
+      if (a === 'sus' && dur * spb < 0.2 && !n.leg && !n.legOut) a = ['vln1', 'vln2', 'vla', 'vc'].includes(n.i) ? 'spic' : n.i === 'cb' ? 'pizz' : ['hn', 'tp', 'tb'].includes(n.i) ? 'stac' : 'sus';
       let m = n.m;
       if (m != null && RANGE[n.i]) {
         while (m < RANGE[n.i][0] - 2) m += 12;
         while (m > RANGE[n.i][1] + 2) m -= 12;
       }
       const v = Math.min(1, n.v * (0.6 + 0.8 * this.intensity));
-      events.push({ i: n.i, a, b, d: dur, m, v });
+      const e = { i: n.i, a, b, d: dur, m, v };
+      if (n.leg) e.leg = true;
+      if (n.legOut) e.legOut = true;
+      events.push(e);
     }
     this.bar++;
     return { beats: this.beatsPerBar, bpm: bpm * this.tempo, events, info: { section: this.label || 'score', bar: this.bar, chord: '', key: '', name: this.name, e: this.intensity } };
