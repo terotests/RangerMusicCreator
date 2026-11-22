@@ -17,7 +17,7 @@ export const RANGE = {
   vln1: [55, 91], vln2: [55, 84], vla: [48, 79], vc: [36, 69], cb: [28, 52],
   hn: [41, 74], tp: [55, 82], tb: [40, 67], tu: [28, 52],
   fl: [60, 96], ob: [58, 88], cl: [50, 86], bn: [34, 67],
-  harp: [28, 100], glock: [79, 106], timp: [40, 57],
+  harp: [28, 100], glock: [79, 106], timp: [40, 57], pno: [21, 108],
 };
 // Where a melody sits best on each player.
 const SWEET = {
@@ -28,7 +28,7 @@ export const SECTION_OF = {
   vln1: 'strings', vln2: 'strings', vla: 'strings', vc: 'strings', cb: 'strings',
   hn: 'brass', tp: 'brass', tb: 'brass', tu: 'brass',
   fl: 'winds', ob: 'winds', cl: 'winds', bn: 'winds',
-  harp: 'harp', glock: 'harp',
+  harp: 'harp', glock: 'harp', pno: 'piano',
   timp: 'perc', cym: 'perc', bd: 'perc', sn: 'perc', gong: 'perc', tri: 'perc',
 };
 const SHORT = { vln1: 'spic', vln2: 'spic', vla: 'spic', vc: 'spic', cb: 'pizz', hn: 'stac', tp: 'stac', tb: 'stac' };

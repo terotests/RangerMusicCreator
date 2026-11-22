@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 // Ranger Symphony: wires the composer, the orchestra and the stage to the page.
-// URL: symphony.html?mood=flyby&seed=123 or symphony.html?piece=danube
+// URL: symphony.html?mood=flyby&seed=123, symphony.html?piece=danube or
+// symphony.html?work=bach-air&arr=piano
 
 import { SymphonyComposer, MOODS, MOOD_IDS, CLASSICS } from './composer.js';
 import { CLASSIC_BY_ID } from './classics.js';
-import { Orchestra, SampleBank } from './orchestra.js';
+import { Orchestra, SampleBank, SYMPHONY_SOURCES } from './orchestra.js';
+import { COMPOSERS, ARRANGEMENTS, WORKS, WORK_BY_ID, arrangeWork, scoreUrl } from './repertoire.js';
 import { MidiScore } from './score.js';
 import { Stage } from './stage.js';
 import { encodeWav, download } from '../recorder.js';
@@ -17,11 +19,18 @@ const SECTIONS = [
   ['brass', 'BRASS'],
   ['perc', 'PERCUSSION'],
   ['harp', 'HARP & BELLS'],
+  ['piano', 'PIANO'],
 ];
 const SECTION_LABEL = { intro: 'INTRODUCTION', A1: 'THEME', A2: 'THEME · FULL STRINGS', B: 'BRIDGE', A3: 'CLIMAX', coda: 'FINALE', rest: '…', score: 'SCORE' };
 
 const params = new URLSearchParams(location.search);
+const startWork = WORK_BY_ID[params.get('work')] || null;
+// The old classics (arranged phrase by phrase) sit under a composer too.
+const CLASSIC_COMPOSER = { ode: 'beethoven' };
 const state = {
+  work: startWork ? startWork.id : null,
+  arr: startWork && startWork.arr.includes(params.get('arr')) ? params.get('arr') : startWork ? startWork.arr[0] : null,
+  composer: startWork ? startWork.composer : CLASSIC_BY_ID[params.get('piece')] ? CLASSIC_COMPOSER[params.get('piece')] || 'more' : 'bach',
   mood: MOODS[params.get('mood')] ? params.get('mood') : 'flyby',
   piece: CLASSIC_BY_ID[params.get('piece')] ? params.get('piece') : null,
   seed: Number(params.get('seed')) || randomSeed(),
@@ -42,6 +51,12 @@ const stage = new Stage($('stage'));
 orch.onNote((ev, t, dur) => stage.note(ev, t, dur));
 
 let source = null; // composer or MIDI score
+const scoreCache = new Map(); // work id -> MIDI bytes
+
+async function fetchScore(work) {
+  if (!scoreCache.has(work.id)) scoreCache.set(work.id, await (await fetch(scoreUrl(work))).arrayBuffer());
+  return scoreCache.get(work.id);
+}
 let playing = false;
 let timer = null;
 let nextTime = 0;
@@ -54,6 +69,13 @@ function avail() {
 }
 
 function makeSource(fresh = false) {
+  if (state.work && scoreCache.has(state.work)) {
+    const w = WORK_BY_ID[state.work];
+    const s = new MidiScore(scoreCache.get(w.id), w.name, { arrange: (score) => arrangeWork(score, w, state.arr), bpm: w.bpm, title: w.name, label: ARRANGEMENTS[state.arr].name });
+    s.tempo = state.tempo;
+    s.intensity = state.intensity;
+    return s;
+  }
   if (state.midi) {
     const s = new MidiScore(state.midi.buffer, state.midi.name);
     s.tempo = state.tempo;
@@ -104,6 +126,7 @@ function tick() {
 
 async function play() {
   await ctx.resume();
+  if (state.work && !scoreCache.has(state.work)) await fetchScore(WORK_BY_ID[state.work]);
   if (!source) source = makeSource();
   syncSource();
   playing = true;
@@ -150,11 +173,12 @@ function renderCards() {
   for (const id of MOOD_IDS) {
     const m = MOODS[id];
     const b = document.createElement('button');
-    b.className = 'card' + (!state.piece && !state.midi && state.mood === id ? ' on' : '');
+    b.className = 'card' + (!state.piece && !state.work && !state.midi && state.mood === id ? ' on' : '');
     b.innerHTML = `<b>${m.name}</b><small>${m.desc}</small>`;
     b.onclick = () => {
       state.mood = id;
       state.piece = null;
+      state.work = null;
       state.midi = null;
       restart();
     };
@@ -162,12 +186,60 @@ function renderCards() {
   }
   const cl = $('tab-classics');
   cl.innerHTML = '';
-  for (const p of CLASSICS) {
+  const chips = document.createElement('div');
+  chips.className = 'composers';
+  for (const c of COMPOSERS) {
     const b = document.createElement('button');
-    b.className = 'card' + (state.piece === p.id && !state.midi ? ' on' : '');
-    b.innerHTML = `<b>${p.name}</b><small>${p.source}</small><div class="pd">Public domain · ${p.pd}</div>`;
+    b.className = 'chip' + (state.composer === c.id ? ' on' : '');
+    b.textContent = c.name;
+    b.dataset.help = `${c.full} (${c.life})`;
+    b.onclick = () => {
+      state.composer = c.id;
+      renderCards();
+    };
+    chips.appendChild(b);
+  }
+  cl.appendChild(chips);
+  const comp = COMPOSERS.find((c) => c.id === state.composer);
+  const head = document.createElement('div');
+  head.className = 'composer-head';
+  head.innerHTML = `<b>${comp.full}</b> <small>${comp.life}</small>`;
+  cl.appendChild(head);
+  for (const w of WORKS.filter((x) => x.composer === state.composer)) {
+    const on = state.work === w.id && !state.midi;
+    const b = document.createElement('div');
+    b.className = 'card work' + (on ? ' on' : '');
+    b.tabIndex = 0;
+    b.innerHTML = `<b>${w.name}</b><small>${w.source}</small><div class="arrs"></div><div class="pd">Public domain · score: Mutopia Project${w.edition === 'public domain' ? '' : ` (${w.edition})`}</div>`;
+    const pick = (arr) => {
+      state.work = w.id;
+      state.arr = arr;
+      state.piece = null;
+      state.midi = null;
+      fetchScore(w).then(restart, (err) => toast('Could not load the score: ' + err.message));
+    };
+    for (const a of w.arr) {
+      const ab = document.createElement('button');
+      ab.className = 'arr' + (on && state.arr === a ? ' on' : '');
+      ab.textContent = ARRANGEMENTS[a].name;
+      ab.dataset.help = ARRANGEMENTS[a].desc + (a === w.arr[0] ? ' As the composer wrote it.' : '');
+      ab.onclick = (e) => {
+        e.stopPropagation();
+        pick(a);
+      };
+      b.querySelector('.arrs').appendChild(ab);
+    }
+    b.onclick = () => pick(on ? state.arr : w.arr[0]);
+    b.onkeydown = (e) => e.key === 'Enter' && b.onclick();
+    cl.appendChild(b);
+  }
+  for (const p of CLASSICS.filter((x) => (CLASSIC_COMPOSER[x.id] || 'more') === state.composer)) {
+    const b = document.createElement('button');
+    b.className = 'card' + (state.piece === p.id && !state.midi && !state.work ? ' on' : '');
+    b.innerHTML = `<b>${p.name}</b><small>${p.source}</small><div class="arrs"><span class="arr fixed">ORCHESTRA · CINEMATIC</span></div><div class="pd">Public domain · ${p.pd}</div>`;
     b.onclick = () => {
       state.piece = p.id;
+      state.work = null;
       state.midi = null;
       restart();
     };
@@ -175,15 +247,23 @@ function renderCards() {
   }
 }
 
+function programName() {
+  if (state.midi) return state.midi.name;
+  if (state.work) return `${WORK_BY_ID[state.work].name} · ${ARRANGEMENTS[state.arr].name}`;
+  if (state.piece) return CLASSIC_BY_ID[state.piece].name;
+  return `${MOODS[state.mood].name} · THEME ${state.seed % 1000}`;
+}
+
 function showProgramName() {
-  const name = state.midi ? state.midi.name : state.piece ? CLASSIC_BY_ID[state.piece].name : `${MOODS[state.mood].name} · THEME ${state.seed % 1000}`;
+  const name = programName();
   $('now-name').textContent = name;
   if (!playing) $('now-meta').textContent = 'Press PLAY';
 }
 
 function updateUrl() {
   const q = new URLSearchParams();
-  if (state.piece) q.set('piece', state.piece);
+  if (state.work) q.set('work', state.work), q.set('arr', state.arr);
+  else if (state.piece) q.set('piece', state.piece);
   else {
     q.set('mood', state.mood);
     q.set('seed', String(state.seed));
@@ -269,21 +349,26 @@ function frame() {
   requestAnimationFrame(frame);
 }
 
-const SEC_OF = { vln1: 'strings', vln2: 'strings', vla: 'strings', vc: 'strings', cb: 'strings', hn: 'brass', tp: 'brass', tb: 'brass', tu: 'brass', fl: 'winds', ob: 'winds', cl: 'winds', bn: 'winds', harp: 'harp', glock: 'harp' };
+const SEC_OF = { pno: 'piano', vln1: 'strings', vln2: 'strings', vla: 'strings', vc: 'strings', cb: 'strings', hn: 'brass', tp: 'brass', tb: 'brass', tu: 'brass', fl: 'winds', ob: 'winds', cl: 'winds', bn: 'winds', harp: 'harp', glock: 'harp' };
 const sectionOf = (p) => SEC_OF[p] || 'perc';
 
 // ---- SAVE WAV: render offline -------------------------------------------------
 
-async function renderWav() {
+// limit: optional length in seconds (for scripts that render excerpts).
+async function renderWav(limit = null) {
   if (!bank.ready) return toast('Wait until all samples are loaded.');
   const btn = $('save');
   btn.disabled = true;
   btn.textContent = 'RENDERING…';
   try {
+    if (state.work) await fetchScore(WORK_BY_ID[state.work]);
     const src = makeSource(true);
     const bars = [];
     let total = 0;
-    for (let guard = 0; guard < 400 && total < 420; guard++) {
+    // A whole work is saved to its end (up to 15 minutes); a scene saves one cycle of its theme.
+    const maxBars = state.work || state.midi ? 4000 : 400;
+    const maxSecs = typeof limit === 'number' ? limit : state.work || state.midi ? 900 : 420;
+    for (let guard = 0; guard < maxBars && total < maxSecs; guard++) {
       const bar = src.nextBar();
       if (!bar) break;
       if (bar.info.section === 'rest' && bars.length) break;
@@ -304,7 +389,7 @@ async function renderWav() {
       t += bar.beats * spb;
     }
     const buf = await off.startRendering();
-    const name = (state.midi ? state.midi.name : state.piece ? CLASSIC_BY_ID[state.piece].name : `${MOODS[state.mood].name} ${state.seed}`).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const name = (state.work ? `${state.work} ${state.arr}` : state.midi ? state.midi.name : state.piece ? CLASSIC_BY_ID[state.piece].name : `${MOODS[state.mood].name} ${state.seed}`).toLowerCase().replace(/[^a-z0-9]+/g, '-');
     download(encodeWav(buf), `ranger-symphony-${name}.wav`);
     toast(`Saved ${Math.round(total)} s of music.`);
   } catch (err) {
@@ -330,13 +415,14 @@ function init() {
       for (const t of ['scenes', 'classics', 'score']) $('tab-' + t).hidden = t !== b.dataset.tab;
     }),
   );
-  if (state.piece) document.querySelector('[data-tab="classics"]').dispatchEvent(new Event('click'));
+  if (state.piece || state.work) document.querySelector('[data-tab="classics"]').dispatchEvent(new Event('click'));
 
   $('play').onclick = () => (playing ? stop() : play());
   $('new').onclick = () => {
     state.seed = randomSeed();
-    if (state.piece || state.midi) {
+    if (state.piece || state.midi || state.work) {
       state.piece = null;
+      state.work = null;
       state.midi = null;
     }
     restart();
@@ -379,6 +465,7 @@ function init() {
       const s = new MidiScore(buffer, f.name.replace(/\.midi?$/i, ''));
       state.midi = { buffer, name: s.name };
       state.piece = null;
+      state.work = null;
       $('parts').innerHTML = s.parts.map((p) => `<li>${escapeHtml(p.name)} → <b>${p.player}</b> (${p.notes})</li>`).join('');
       restart();
       toast(`${s.parts.length} parts loaded.`);
@@ -409,6 +496,7 @@ function init() {
 
   bank
     .load(ctx, {
+      sources: SYMPHONY_SOURCES,
       onProgress: (n, total) => {
         $('load-fill').style.width = `${Math.round((n / total) * 100)}%`;
         $('load-text').textContent = `${n} / ${total} samples`;
@@ -420,7 +508,8 @@ function init() {
     });
 
   // A hook for tests and the MCP bridge.
-  window.symphony = { state, play, stop, restart, renderWav, bank, orch, get source() { return source; }, ctx };
+  window.symphony = { state, play, stop, restart, renderWav, bank, orch, get source() { return source; }, ctx, fetchScore, WORK_BY_ID };
+  if (state.work) fetchScore(WORK_BY_ID[state.work]).catch(() => {});
 }
 
 function escapeHtml(s) {

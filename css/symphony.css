@@ -211,3 +211,25 @@ input[type='range'] { accent-color: var(--gold); height: 22px; }
   .help-line { display: none; }
   .now-meta { font-size: 11px; }
 }
+
+/* Classics: composer chips and arrangement buttons */
+.composers { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.chip, .arr {
+  font: 12px var(--serif);
+  letter-spacing: 2px;
+  color: var(--dim);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(231, 192, 106, 0.3);
+  border-radius: 999px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.chip:hover, .arr:hover { color: var(--cream); border-color: var(--gold); }
+.chip.on, .arr.on { color: #1a0c08; background: var(--gold); border-color: var(--gold); }
+.composer-head { grid-column: 1 / -1; color: var(--cream); letter-spacing: 1px; margin: 2px 0 -2px; }
+.composer-head small { color: var(--dim); margin-left: 6px; }
+.card.work { cursor: pointer; }
+.arrs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.arr { font-size: 10.5px; padding: 2px 8px; letter-spacing: 1.5px; }
+.arr.fixed { cursor: default; }
+.arr.fixed:hover { color: var(--dim); border-color: rgba(231, 192, 106, 0.3); }
