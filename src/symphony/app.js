@@ -26,7 +26,7 @@ const SECTION_LABEL = { intro: 'INTRODUCTION', A1: 'THEME', A2: 'THEME · FULL S
 const params = new URLSearchParams(location.search);
 const startWork = WORK_BY_ID[params.get('work')] || null;
 // The old classics (arranged phrase by phrase) sit under a composer too.
-const CLASSIC_COMPOSER = { ode: 'beethoven' };
+const CLASSIC_COMPOSER = {}; // phrase-arranged classics by composer; all now under MORE
 const state = {
   work: startWork ? startWork.id : null,
   arr: startWork && startWork.arr.includes(params.get('arr')) ? params.get('arr') : startWork ? startWork.arr[0] : null,

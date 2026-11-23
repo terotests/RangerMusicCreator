@@ -54,7 +54,6 @@ Finland and the EU) and it was published before 1930 (free in the US).
 | THE BLUE DANUBE | Johann Strauss II, An der schönen blauen Donau (1866) | Composer died 1899 |
 | ALSO SPRACH ZARATHUSTRA | Richard Strauss, introduction (1896) | Composer died 1949: free in the EU since 1 Jan 2020; published 1896, free in the US |
 | MARS OSTINATO | After Gustav Holst, The Planets: Mars (1914–16). Only the 5/4 rhythm is taken; the harmonies and build are written here | Composer died 1934: free in the EU since 2005; published 1921, free in the US |
-| ODE TO JOY | Ludwig van Beethoven, Symphony No. 9 (1824) | Composer died 1827 |
 | NEW WORLD LARGO | Antonín Dvořák, Symphony No. 9 (1893) | Composer died 1904 |
 | IN THE HALL OF THE MOUNTAIN KING | Edvard Grieg, Peer Gynt (1875) | Composer died 1907 |
 | MORNING MOOD | Edvard Grieg, Peer Gynt (1875) | Composer died 1907 |
@@ -96,7 +95,13 @@ same licence. Only the notes of those editions are used.
 | FANTAISIE-IMPROMPTU | Frédéric Chopin, Op. 66 in C-sharp minor (1834, published 1855) | `scores/chopin-fantaisie.mid`, Mutopia `ftp/ChopinFF/O66/chopin_fantaisie-impromptu` (Mutopia-2009/09/05-1693), public domain | Composer died 1849 |
 | “REVOLUTIONARY” ÉTUDE | Frédéric Chopin, Étude in C minor, Op. 10 No. 12 (1831) | `scores/chopin-revolutionary.mid`, Mutopia `ftp/ChopinFF/O10/op-10-12-wfi` (Mutopia-2018/05/15-743), public domain | Composer died 1849 |
 | EINE KLEINE NACHTMUSIK | W. A. Mozart, Serenade in G, K. 525: Allegro (1787) | `scores/mozart-nachtmusik.mid`, Mutopia `ftp/MozartWA/KV525/eine-kleine-nachtmusik-mvt1` (Mutopia-2007/01/01-900), public domain | Composer died 1791 |
-| FÜR ELISE | L. van Beethoven, Bagatelle in A minor, WoO 59 (1810) | `scores/beethoven-elise.mid`, Mutopia `ftp/BeethovenLv/WoO59/fur_Elise_WoO59` (Mutopia-2015/08/18-931), public domain | Composer died 1827 |
+| MOONLIGHT SONATA · ADAGIO SOSTENUTO | L. van Beethoven, Piano Sonata No. 14, Op. 27 No. 2: I (1801) | `scores/beethoven-moonlight-1.mid`, Mutopia `ftp/BeethovenLv/O27/moonlight` (Mutopia-2007/02/11-276), [CC BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/), typeset by Stewart Holmes | Composer died 1827 |
+| MOONLIGHT SONATA · PRESTO AGITATO | L. van Beethoven, Piano Sonata No. 14, Op. 27 No. 2: III (1801) | `scores/beethoven-moonlight-3.mid`, Mutopia `ftp/BeethovenLv/O27/moonlight` (Mutopia-2007/02/11-276), [CC BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/), typeset by Stewart Holmes | Composer died 1827 |
+| PATHÉTIQUE · ADAGIO CANTABILE | L. van Beethoven, Piano Sonata No. 8, Op. 13: II (1798) | `scores/beethoven-pathetique-2.mid`, Mutopia `ftp/BeethovenLv/O13/pathetique-2` (Mutopia-2011/10/25-295), public domain | Composer died 1827 |
+| PATHÉTIQUE · GRAVE – ALLEGRO | L. van Beethoven, Piano Sonata No. 8, Op. 13: I (1798) | `scores/beethoven-pathetique-1.mid`, Mutopia `ftp/BeethovenLv/O13/pathetique-1` (Mutopia-2009/09/13-299), public domain | Composer died 1827 |
+| “TEMPEST” SONATA · ALLEGRO | L. van Beethoven, Piano Sonata No. 17, Op. 31 No. 2: I (1802) | `scores/beethoven-tempest-1.mid`, Mutopia `ftp/BeethovenLv/O31/LVB_Sonate_31no2_1` (Mutopia-2008/08/12-1509), public domain | Composer died 1827 |
+| APPASSIONATA · FINALE | L. van Beethoven, Piano Sonata No. 23, Op. 57: III (1805) | `scores/beethoven-appassionata-3.mid`, Mutopia `ftp/BeethovenLv/O57/LVB_Sonate_57_3` (Mutopia-2007/03/12-937), public domain | Composer died 1827 |
+| SYMPHONY NO. 7 · ALLEGRETTO | L. van Beethoven, Symphony No. 7 in A, Op. 92: II (1812) | `scores/beethoven-symphony7-2.mid`, Mutopia `ftp/BeethovenLv/O92/Symphony7_2` (Mutopia-2005/08/21-595), public domain | Composer died 1827 |
 | CLAIR DE LUNE | Claude Debussy, Suite bergamasque (1905) | `scores/debussy-clair.mid`, Mutopia `ftp/DebussyC/L75/debussy_Ste_Bergamesq_Clair` (Mutopia-2010/12/21-1778), public domain | Composer died 1918 |
 | ARABESQUE NO. 1 | Claude Debussy, Deux arabesques (1891) | `scores/debussy-arabesque-1.mid`, Mutopia `ftp/DebussyC/L66/debussy_Arabesque_1` (Mutopia-2011/10/25-1777), public domain | Composer died 1918 |
 | GYMNOPÉDIE NO. 1 | Erik Satie, Trois Gymnopédies (1888) | `scores/satie-gymnopedie-1.mid`, Mutopia `ftp/SatieE/gymnopedie_1` (Mutopia-2014/12/14-37), public domain | Composer died 1925 |

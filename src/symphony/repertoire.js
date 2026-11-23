@@ -30,7 +30,7 @@ export const ARRANGEMENTS = {
 //   string parts; fl, fl2, voice: wind or vocal lines; ped: organ pedals; hpd: harpsichord.
 // bpm: opening tempo in quarter notes (LilyPond writes 60 when a source has none).
 const PD = 'public domain';
-const BYSA = (who) => `CC BY-SA 3.0, typeset by ${who}`;
+const BYSA = (who, ver = '3.0') => `CC BY-SA ${ver}, typeset by ${who}`;
 export const WORKS = [
   { id: 'bach-air', composer: 'bach', name: 'AIR ON THE G STRING', source: 'Orchestral Suite No. 3 in D, BWV 1068: Air (c. 1730)', file: 'bach-air', parts: ['vln1', 'vln2', 'vla', 'vc'], bpm: 32, arr: ['strings', 'piano', 'orchestra'], edition: BYSA('Jeff Covey') },
   { id: 'bach-prelude-c', composer: 'bach', name: 'PRELUDE IN C MAJOR', source: 'The Well-Tempered Clavier I, BWV 846 (1722)', file: 'bach-prelude-c', parts: ['rh', 'lh'], bpm: 66, arr: ['piano', 'strings', 'orchestra'], edition: PD, arpeggio: true },
@@ -57,7 +57,13 @@ export const WORKS = [
   { id: 'chopin-revolutionary', composer: 'chopin', name: '"REVOLUTIONARY" ÉTUDE', source: 'Étude in C minor, Op. 10 No. 12 (1831)', file: 'chopin-revolutionary', parts: ['rh', 'lh'], bpm: 152, romantic: true, arr: ['piano', 'strings', 'orchestra'], edition: PD },
 
   { id: 'mozart-nachtmusik', composer: 'mozart', name: 'EINE KLEINE NACHTMUSIK', source: 'Serenade in G, K. 525: Allegro (1787)', file: 'mozart-nachtmusik', parts: ['vln1', 'vln2', 'vla', 'vc'], bpm: 138, arr: ['strings', 'orchestra', 'piano'], edition: PD },
-  { id: 'beethoven-elise', composer: 'beethoven', name: 'FÜR ELISE', source: 'Bagatelle in A minor, WoO 59 (1810)', file: 'beethoven-elise', parts: ['rh', 'lh'], bpm: null, romantic: true, arr: ['piano', 'strings', 'orchestra'], edition: PD },
+  { id: 'beethoven-moonlight-1', composer: 'beethoven', name: 'MOONLIGHT SONATA · ADAGIO SOSTENUTO', source: 'Piano Sonata No. 14 in C-sharp minor, Op. 27 No. 2: I (1801)', file: 'beethoven-moonlight-1', parts: ['rh', 'lh'], bpm: 52, romantic: true, arr: ['piano', 'strings', 'orchestra'], edition: BYSA('Stewart Holmes', '2.5') },
+  { id: 'beethoven-moonlight-3', composer: 'beethoven', name: 'MOONLIGHT SONATA · PRESTO AGITATO', source: 'Piano Sonata No. 14 in C-sharp minor, Op. 27 No. 2: III (1801)', file: 'beethoven-moonlight-3', parts: ['rh', 'lh'], bpm: 152, romantic: true, arr: ['piano', 'orchestra', 'strings'], edition: BYSA('Stewart Holmes', '2.5') },
+  { id: 'beethoven-pathetique-2', composer: 'beethoven', name: 'PATHÉTIQUE · ADAGIO CANTABILE', source: 'Piano Sonata No. 8 in C minor, Op. 13: II (1798)', file: 'beethoven-pathetique-2', parts: ['rh', 'lh'], bpm: 34, romantic: true, arr: ['piano', 'strings', 'orchestra'], edition: PD },
+  { id: 'beethoven-pathetique-1', composer: 'beethoven', name: 'PATHÉTIQUE · GRAVE – ALLEGRO', source: 'Piano Sonata No. 8 in C minor, Op. 13: I (1798)', file: 'beethoven-pathetique-1', parts: ['rh', 'lh'], bpm: null, romantic: true, arr: ['piano', 'orchestra', 'strings'], edition: PD },
+  { id: 'beethoven-tempest-1', composer: 'beethoven', name: '"TEMPEST" SONATA · ALLEGRO', source: 'Piano Sonata No. 17 in D minor, Op. 31 No. 2: I (1802)', file: 'beethoven-tempest-1', parts: ['rh', 'lh'], bpm: null, romantic: true, arr: ['piano', 'orchestra', 'strings'], edition: PD },
+  { id: 'beethoven-appassionata-3', composer: 'beethoven', name: 'APPASSIONATA · FINALE', source: 'Piano Sonata No. 23 in F minor, Op. 57: III Allegro ma non troppo (1805)', file: 'beethoven-appassionata-3', parts: ['rh', 'lh'], bpm: null, romantic: true, arr: ['piano', 'orchestra', 'strings'], edition: PD },
+  { id: 'beethoven-symphony7-2', composer: 'beethoven', name: 'SYMPHONY NO. 7 · ALLEGRETTO', source: 'Symphony No. 7 in A, Op. 92: II (1812)', file: 'beethoven-symphony7-2', parts: ['fl', 'ob', 'cl', 'bn', 'hn', 'tp', 'timp', 'vln1', 'vln2', 'vla', 'vc', 'cb'], bpm: 70, scored: true, arr: ['orchestra', 'strings', 'piano'], edition: PD },
   { id: 'debussy-clair', composer: 'debussy', name: 'CLAIR DE LUNE', source: 'Suite bergamasque (1905)', file: 'debussy-clair', parts: ['rh', 'lh'], bpm: 60, romantic: true, arr: ['piano', 'strings', 'orchestra'], edition: PD },
   { id: 'debussy-arabesque-1', composer: 'debussy', name: 'ARABESQUE NO. 1', source: 'Deux arabesques (1891)', file: 'debussy-arabesque-1', parts: ['rh', 'lh'], bpm: 92, romantic: true, arr: ['piano', 'strings', 'orchestra'], edition: PD },
   { id: 'satie-gymnopedie-1', composer: 'satie', name: 'GYMNOPÉDIE NO. 1', source: 'Trois Gymnopédies (1888)', file: 'satie-gymnopedie-1', parts: ['rh', 'lh'], bpm: 72, romantic: true, arr: ['piano', 'strings', 'orchestra'], edition: PD },
@@ -67,6 +73,8 @@ export const scoreUrl = (w) => `scores/${w.file}.mid`;
 
 // ---- arranging ---------------------------------------------------------------
 
+// Players of a symphony score that only the orchestra has.
+const BAND_ROLES = new Set(['ob', 'cl', 'bn', 'hn', 'tp', 'timp']);
 const STRING_ROLE = { solo: 'vln1', solo2: 'vln2', vln1: 'vln1', vln2: 'vln2', vla: 'vla', vc: 'vc', cb: 'cb', fl: 'vln2', fl2: 'vla', voice: 'vln1' };
 
 // Notes struck together (within a 64th) form a chord.
@@ -115,7 +123,7 @@ function arrangeNotes(score, work, arr) {
 
   // Romantic piano music, and string or vocal music played on the piano, is sung: pedal, legato, voicing.
   if (arr === 'piano' && (work.romantic || !keyboard)) {
-    cantabilePiano(score, tracks, work, add);
+    cantabilePiano(score, tracks.filter((t) => !['hn', 'tp', 'timp'].includes(t.role)), work, add);
     return out;
   }
   if (arr === 'piano') {
@@ -171,7 +179,15 @@ function arrangeNotes(score, work, arr) {
       for (const n of t.notes) add(full || arr === 'strings' ? 'harp' : 'pno', n, n.v * 0.8);
       continue;
     }
+    // Wind, brass and timpani parts of a full score: their own players in the
+    // orchestra; the strings already carry the music without them; on the
+    // piano only the woodwinds are kept.
+    if (BAND_ROLES.has(r) || (work.scored && r === 'fl')) {
+      if (full) for (const n of t.notes) add(r, n, n.v * (r === 'timp' ? 0.85 : 0.9), r === 'timp' ? { a: 'hit' } : {});
+      continue;
+    }
     // String, wind and vocal parts.
+    const doubled = full && !work.scored; // a full score already has its own doublings
     for (const n of t.notes) {
       const len = n.t1 - n.t0;
       let i = STRING_ROLE[r] || 'vln1';
@@ -179,13 +195,13 @@ function arrangeNotes(score, work, arr) {
       if (full && r === 'voice') i = 'ob';
       const pizz = work.pizz?.includes(r);
       add(i, n, n.v + (r === 'solo' || r === 'solo2' ? 0.08 : 0), pizz ? { a: 'pizz' } : {});
-      if (r === 'vc') {
+      if (r === 'vc' && !work.scored) {
         if (n.m - 12 >= 28) add('cb', n, n.v * 0.8, { m: n.m - 12, a: pizz ? 'pizz' : undefined });
         if (full && len >= beat * 0.9) add('bn', n, n.v * 0.55);
       }
       if (full && r === 'voice') add('vln1', n, n.v * 0.7);
-      if (full && r === 'vln1' && len >= beat * 0.9) add('ob', n, n.v * 0.55);
-      if (full && r === 'vla' && len >= beat * 1.5) add('hn', n, n.v * 0.45, { m: n.m < 41 ? n.m + 12 : n.m });
+      if (doubled && r === 'vln1' && len >= beat * 0.9) add('ob', n, n.v * 0.55);
+      if (doubled && r === 'vla' && len >= beat * 1.5) add('hn', n, n.v * 0.45, { m: n.m < 41 ? n.m + 12 : n.m });
     }
   }
   return out;

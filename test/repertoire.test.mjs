@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
-import { WORKS, COMPOSERS, ARRANGEMENTS, arrangeBytes, scoreUrl } from '../src/symphony/repertoire.js';
+import { WORKS, WORK_BY_ID, COMPOSERS, ARRANGEMENTS, arrangeBytes, scoreUrl } from '../src/symphony/repertoire.js';
 import { MidiScore, parseScore } from '../src/symphony/score.js';
 import { RANGE } from '../src/symphony/composer.js';
 import { SEATS } from '../src/symphony/orchestra.js';
@@ -74,4 +74,16 @@ test('interpretation: a nocturne sings over a lighter left hand, a string line i
   const spring = WORKS.find((x) => x.id === 'vivaldi-spring-1');
   const s = arrangeBytes(bytes(spring), spring, 'strings');
   assert.ok(s.filter((n) => n.leg).length > s.length * 0.5);
+});
+
+test('Beethoven: Moonlight Sonata movements and a full-score symphony movement', () => {
+  const b = WORKS.filter((w) => w.composer === 'beethoven').map((w) => w.id);
+  assert.ok(b.includes('beethoven-moonlight-1') && b.includes('beethoven-moonlight-3'));
+  const w = WORK_BY_ID['beethoven-symphony7-2'];
+  const buf = readFileSync(new URL(`../${scoreUrl(w)}`, import.meta.url));
+  const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.length);
+  const players = (arr) => new Set(arrangeBytes(ab, w, arr).map((n) => n.i));
+  const orch = players('orchestra');
+  for (const p of ['fl', 'ob', 'cl', 'bn', 'hn', 'tp', 'timp', 'vln1', 'cb']) assert.ok(orch.has(p), p);
+  assert.ok(![...players('strings')].some((p) => ['ob', 'cl', 'bn', 'hn', 'tp', 'timp', 'fl'].includes(p)));
 });

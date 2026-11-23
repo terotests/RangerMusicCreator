@@ -69,7 +69,8 @@ classics, with a real sampled orchestra.
   Summer presto, Autumn, Winter and its Largo from the Four Seasons),
   **Chopin** (Nocturne Op. 9/2, three preludes including the Raindrop, the
   Minute Waltz, Waltz in B minor, Fantaisie-Impromptu, Revolutionary Étude),
-  **Mozart** (Eine kleine Nachtmusik), **Beethoven** (Für Elise), **Debussy**
+  **Mozart** (Eine kleine Nachtmusik), **Beethoven** (Moonlight Sonata I and III,
+  Pathétique I and II, Tempest I, Appassionata finale, Symphony 7 Allegretto), **Debussy**
   (Clair de lune, Arabesque 1) and **Satie** (Gymnopédie 1). They are played
   note for note from Mutopia Project scores rendered to MIDI with LilyPond
   (`scripts/build-scores.py`, files in `scores/`), and each card offers
@@ -84,7 +85,7 @@ classics, with a real sampled orchestra.
   (the next note starts without a new attack).
   Link: `symphony.html?work=chopin-nocturne-9-2&arr=piano`.
 - Under **MORE**: The Blue Danube, Also sprach Zarathustra (the sunrise), a Mars
-  build over Holst's 5/4 rhythm, Ode to Joy, the New World Largo, In the Hall of
+  build over Holst's 5/4 rhythm, the New World Largo, In the Hall of
   the Mountain King (which speeds up as it goes), Morning Mood and Swan Lake,
   arranged here (see LICENSES.md).
 - **MIDI SCORE**: load a MIDI file of an orchestral score and the orchestra
