@@ -77,6 +77,11 @@ classics, with a real sampled orchestra.
   first (`src/symphony/repertoire.js`). The piano is a CC0 Steinway Model B
   from the Versilian Community Sample Library (`samples/grand/`, 6 MB, built by
   `scripts/build-piano-samples.py`); the sustain pedal in the scores is played.
+  The notes are interpreted rather than typed in: accents are softened,
+  phrases swell and relax, a melody grows as it climbs; romantic piano music
+  gets pedal on each bass note, a singing melody over a light accompaniment
+  and rubato; string and wind lines without rests are played on one bow
+  (the next note starts without a new attack).
   Link: `symphony.html?work=chopin-nocturne-9-2&arr=piano`.
 - Under **MORE**: The Blue Danube, Also sprach Zarathustra (the sunrise), a Mars
   build over Holst's 5/4 rhythm, Ode to Joy, the New World Largo, In the Hall of
