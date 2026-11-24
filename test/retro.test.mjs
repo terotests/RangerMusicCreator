@@ -212,3 +212,21 @@ test('APOLLO: pieces fill their bars and MOON SHOT remixes only mission themes',
     assert.ok(ids.has(c.song.theme.id), `seed ${seed}: theme ${c.song.theme.id}`);
   }
 });
+
+test('RADIO 1969: each style remixes only its own tunes, blues in 12 bars', async () => {
+  const { RADIO_STYLES } = await import('../src/retro/radio.js');
+  for (const [id, S] of Object.entries(RADIO_STYLES)) {
+    assert.equal(S.tab, 'radio');
+    const ids = new Set(S.themes.map((t) => t.id));
+    for (let seed = 1; seed <= 6; seed++) {
+      const c = new SpaceComposer({ seed, style: id });
+      assert.ok(ids.has(c.song.theme.id), `${id} seed ${seed}: ${c.song.theme.id}`);
+      if (id === 'blues69') assert.equal(c.song.sec.A.chords.length, 12);
+    }
+    for (const t of S.themes) {
+      const bars = tune(t.melody);
+      assert.equal(bars.length, t.chords.trim().split(/\s+/).length, `${t.id}: bars`);
+      bars.forEach((b, i) => assert.ok(Math.max(0, ...b.map((x) => x.b + x.d)) <= 4 + 1e-6, `${t.id} bar ${i + 1} too long`));
+    }
+  }
+});

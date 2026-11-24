@@ -182,6 +182,11 @@ through the form.
     Lifeboat, Splashdown) and MOON SHOT 1969, which remixes these themes with
     a synthesized Moog-style lead, a 1969 beat and radio beeps.
     `spaceage.html?piece=countdown`, `spaceage.html?style=apollo&seed=5`.
+  - **RADIO 1969** tab: what the radio played then, as originals in the
+    manner of the time: ROCK 1969, SOUL 1969, BLUES SHUFFLE (12 bars),
+    SOUL JAZZ and SUNSHINE POP, each remixing its own two tunes. Adds a
+    synthesized electric guitar (clean, crunch, fuzz, palm mute), drum kit
+    and tambourine. `spaceage.html?style=blues69&seed=1`.
 - **Synthwave** (1980s): OUTRUN, ITALO DISCO, DARKSYNTH, DREAMWAVE, TV THEME,
   plus Grieg's In the Hall of the Mountain King (speeding up every round)
   and the opening of Bach's Toccata in D minor. Everything is synthesized:

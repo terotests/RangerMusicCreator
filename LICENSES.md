@@ -178,6 +178,8 @@ Public-domain pieces:
 
 APOLLO originals: COUNTDOWN, TRANQUILITY BASE, AQUARIUS LIFEBOAT and SPLASHDOWN (`src/retro/apollo.js`) are written for this repo in the style of 1969–70 and are MIT like the rest. No song or recording from 1969–70 is used; the mission names are only titles. The Moog-style lead, radio beeps and kick drum are synthesised (`src/retro/voices.js`, `src/instruments.js`).
 
+RADIO 1969 (`src/retro/radio.js`): ROCK 1969, SOUL 1969, BLUES SHUFFLE, SOUL JAZZ and SUNSHINE POP play ten tunes written for this repo in the manner of 1969 (Highway Signal, Fuzz Rendezvous, Come Home Soon, Mission Groove, Telemetry Blues, Slow Burn, Eagle Strut, Late Edition, Silver Sunday, Flower Orbit). Only the habits of the styles are used (fuzz riffs, backbeat tambourine, the 12-bar shuffle, the organ trio, sunshine-pop harmony); no melody, recording or arrangement from the period. MIT. The electric guitar and tambourine are synthesised (`src/retro/voices.js`); the snare is the Pop Machine's synthesised snare.
+
 Left out on purpose: the space-age and 1980s hits themselves (Les Baxter,
 Martin Denny, Esquivel, film and TV themes, synth-pop records) are still
 protected, as are modern synth covers of the classics above. Only style
