@@ -7,6 +7,7 @@
 import { RetroComposer } from './composer.js';
 import { SPACE_RANGE, SPACE_SECTION_OF } from './bands.js';
 import { tune } from './tunes.js';
+import { APOLLO_STYLE, APOLLO_PIECES } from './apollo.js';
 
 const NAMES = [
   ['Velvet', 'Saturn', 'Coral', 'Lunar', 'Tiki', 'Martini', 'Jade', 'Starlight', 'Cosmic', 'Bamboo', 'Orbiting', 'Silver', 'Moonlit', 'Atomic', 'Polynesian', 'Zero-G'],
@@ -147,6 +148,8 @@ export const SPACE_STYLES = {
     drums: 'waltz', crash: 'cym', lift: [0, 1],
     ending: ['vib', 'str', 'vla', 'hrp', 'cym'],
   },
+  // The APOLLO tab: music around Apollo 11 and 13 (src/retro/apollo.js).
+  apollo: APOLLO_STYLE,
 };
 export const SPACE_STYLE_IDS = Object.keys(SPACE_STYLES);
 
@@ -166,6 +169,7 @@ export const SPACE_PIECES = {
     },
     form: ['intro', 'A', 'B', 'solo', 'B', 'A2', 'outro'],
   },
+  ...Object.fromEntries(APOLLO_PIECES.map((p) => [p.id, p])),
 };
 export const SPACE_PIECE_LIST = Object.values(SPACE_PIECES);
 

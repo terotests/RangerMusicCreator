@@ -19,15 +19,15 @@ export const SPACE_SOURCES = [
 
 export const SPACE_SECTION_OF = {
   vib: 'keys', org: 'keys', pno: 'keys', mar: 'keys',
-  thr: 'space', glk: 'space', hrp: 'space', ufo: 'space', bird: 'space',
+  thr: 'space', moog: 'space', beep: 'space', glk: 'space', hrp: 'space', ufo: 'space', bird: 'space',
   str: 'strings', vla: 'strings', vc: 'strings', fl: 'strings',
   tp: 'brass', tb: 'brass',
   cb: 'rhythm', bgh: 'rhythm', bgl: 'rhythm', cgh: 'rhythm', cgl: 'rhythm', clv: 'rhythm', gui: 'rhythm', mrc: 'rhythm',
-  tap: 'rhythm', ride: 'rhythm', hh: 'rhythm', timp: 'rhythm', cym: 'rhythm',
+  kick: 'rhythm', tap: 'rhythm', ride: 'rhythm', hh: 'rhythm', timp: 'rhythm', cym: 'rhythm',
 };
 export const SPACE_SECTIONS = [
   ['keys', 'VIBES · ORGAN · MARIMBA'],
-  ['space', 'THEREMIN · HARP · CELESTE'],
+  ['space', 'THEREMIN · MOOG · HARP · CELESTE'],
   ['strings', 'STRINGS & FLUTE'],
   ['brass', 'MUTED BRASS'],
   ['rhythm', 'BASS & LATIN PERCUSSION'],
@@ -59,8 +59,8 @@ export const SPACE_BAND = {
   },
   setGain: { piano: 1.2, tp_mute: 2.0, tp_vib: 3.0, tb_vib: 4.0, tb_short: 1.7, ride: 1.2, bell: 0.9, sn_tap: 2.6, cb_pizz: 1.3, marimba: 1.1, bongo_hi: 0.9, bongo_lo: 0.9, conga_hi: 0.8, conga_lo: 0.8, claves: 0.7, guiro: 0.8, maraca: 0.7, glock: 0.8 },
   ring: new Set(['mar', 'glk', 'hrp', 'timp', 'cym', 'bgh', 'bgl', 'cgh', 'cgl', 'clv', 'gui', 'mrc', 'tap', 'ride']),
-  synth: { vib: V.vib, org: V.organ, thr: V.theremin, ufo: V.ufo, bird: V.bird, hh: hihat },
-  fx: { thr: V.tempoDelay(1, 0.32, 0.22), vib: V.tempoDelay(1.5, 0.2, 0.12), org: V.chorus(0.002, 0.35) },
+  synth: { vib: V.vib, org: V.organ, thr: V.theremin, moog: V.moog, beep: V.beep, kick: V.kick, ufo: V.ufo, bird: V.bird, hh: hihat },
+  fx: { thr: V.tempoDelay(1, 0.32, 0.22), moog: V.tempoDelay(0.75, 0.3, 0.18), vib: V.tempoDelay(1.5, 0.2, 0.12), org: V.chorus(0.002, 0.35) },
   ensemble: ['strings'],
   useOnset: true,
   release: { strings: 0.45, brass: 0.2, keys: 0.25, space: 0.3, rhythm: 0.1 },
@@ -71,6 +71,8 @@ export const SPACE_BAND = {
     pno: { pan: -0.45, depth: 0.35, gain: 0.75 },
     mar: { pan: 0.45, depth: 0.35, gain: 0.8 },
     thr: { pan: 0.05, depth: 0.1, gain: 0.85 },
+    moog: { pan: -0.05, depth: 0.1, gain: 0.95 },
+    beep: { pan: 0.7, depth: 0.2, gain: 0.5 },
     glk: { pan: 0.5, depth: 0.5, gain: 0.45 },
     hrp: { pan: -0.65, depth: 0.4, gain: 0.75 },
     ufo: { pan: 0, depth: 0.3, gain: 0.7 },
@@ -89,6 +91,7 @@ export const SPACE_BAND = {
     clv: { pan: 0.3, depth: 0.6, gain: 0.45 },
     gui: { pan: -0.3, depth: 0.6, gain: 0.45 },
     mrc: { pan: 0.65, depth: 0.6, gain: 0.4 },
+    kick: { pan: 0, depth: 0.5, gain: 0.5 },
     tap: { pan: 0.0, depth: 0.7, gain: 0.5 },
     ride: { pan: 0.2, depth: 0.7, gain: 0.45 },
     hh: { pan: 0.2, depth: 0.7, gain: 0.35 },
@@ -98,7 +101,7 @@ export const SPACE_BAND = {
 };
 
 export const SPACE_RANGE = {
-  vib: [53, 89], org: [36, 96], pno: [29, 97], mar: [45, 96], thr: [55, 91], glk: [79, 108], hrp: [24, 103],
+  vib: [53, 89], org: [36, 96], pno: [29, 97], mar: [45, 96], thr: [55, 91], moog: [43, 96], glk: [79, 108], hrp: [24, 103],
   str: [55, 96], vla: [48, 84], vc: [36, 72], fl: [60, 96], tp: [55, 82], tb: [40, 67], cb: [28, 55], timp: [40, 57],
   ufo: [48, 96], bird: [84, 108],
 };

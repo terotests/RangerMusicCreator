@@ -172,6 +172,11 @@ Public-domain pieces:
 | MINUET IN G (remix theme) | Christian Petzold, Minuet in G (1725), long attributed to J. S. Bach | 8 bars written out by ear in `src/retro/themes.js`, remixed by `src/retro/composer.js` | Composer died 1733 |
 | AMAZING GRACE (remix theme) | Amazing Grace, hymn tune "New Britain" (1829) | 8 bars written out by ear in `src/retro/themes.js`, remixed by `src/retro/composer.js` | Tune published 1829; traditional words not used |
 | SCARBOROUGH FAIR (remix theme) | Scarborough Fair, traditional English | 8 bars written out by ear in `src/retro/themes.js`, remixed by `src/retro/composer.js` | Traditional |
+| NEW WORLD LARGO (APOLLO tab) | Antonín Dvořák, Symphony No. 9, Largo (1893) | The 8 bars in `src/retro/themes.js`, read from the free score; bridge generated | Composer died 1904 |
+| ZARATHUSTRA 1970 (APOLLO tab) | Richard Strauss, Also sprach Zarathustra, Op. 30 (1896) | The three trumpet calls written out from the free score in `src/retro/apollo.js`; the four closing bars and the arrangement are written here | Composer died 1949 (public domain in the EU since 2020); published 1896 |
+| BLUE DANUBE DOCKING (APOLLO tab) | Johann Strauss II, An der schönen blauen Donau, Op. 314 (1867) | The first waltz theme written out from the free score in `src/retro/apollo.js`; bridge generated | Composer died 1899 |
+
+APOLLO originals: COUNTDOWN, TRANQUILITY BASE, AQUARIUS LIFEBOAT and SPLASHDOWN (`src/retro/apollo.js`) are written for this repo in the style of 1969–70 and are MIT like the rest. No song or recording from 1969–70 is used; the mission names are only titles. The Moog-style lead, radio beeps and kick drum are synthesised (`src/retro/voices.js`, `src/instruments.js`).
 
 Left out on purpose: the space-age and 1980s hits themselves (Les Baxter,
 Martin Denny, Esquivel, film and TV themes, synth-pop records) are still

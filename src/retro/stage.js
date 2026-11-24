@@ -28,6 +28,7 @@ function glow(g, x, y, r, col, a) {
 
 const SPACE_SEATS = {
   thr: { x: 600, y: 330, label: 'THEREMIN', col: [140, 255, 220] },
+  moog: { x: 1000, y: 222, label: 'MOOG', col: [255, 140, 90] },
   vib: { x: 420, y: 360, label: 'VIBES', col: [255, 210, 120] },
   mar: { x: 790, y: 360, label: 'MARIMBA', col: [255, 170, 110] },
   org: { x: 960, y: 345, label: 'ORGAN', col: [255, 120, 160] },
@@ -43,7 +44,7 @@ const SPACE_SEATS = {
   cb: { x: 1110, y: 400, label: 'BASS', col: [220, 170, 120] },
   perc: { x: 600, y: 415, label: 'BONGOS · CONGAS · MARACAS', col: [255, 150, 90] },
 };
-const PERC = new Set(['bgh', 'bgl', 'cgh', 'cgl', 'clv', 'gui', 'mrc', 'tap', 'ride', 'hh', 'timp', 'cym']);
+const PERC = new Set(['kick', 'bgh', 'bgl', 'cgh', 'cgl', 'clv', 'gui', 'mrc', 'tap', 'ride', 'hh', 'timp', 'cym']);
 
 export class SpaceStage extends BaseStage {
   constructor(canvas) {
@@ -199,6 +200,21 @@ export class SpaceStage extends BaseStage {
         }
         g.stroke();
       }
+    } else if (key === 'moog') {
+      // A modular cabinet: rows of knobs and patch cords that swing as it plays.
+      g.strokeRect(x - 36, y - 26, 72, 34);
+      for (let r = 0; r < 2; r++) for (let k = 0; k < 6; k++) {
+        g.beginPath();
+        g.arc(x - 27 + k * 11, y - 18 + r * 12, 3, 0, Math.PI * 2);
+        g.stroke();
+      }
+      g.beginPath();
+      for (const [x0, x1] of [[-27, 6], [-5, 27]]) {
+        g.moveTo(x + x0, y - 18);
+        g.quadraticCurveTo(x + (x0 + x1) / 2, y + 2 + Math.sin(t * 6 + x0) * 5 * a, x + x1, y - 6);
+      }
+      g.stroke();
+      g.fillRect(x - 40, y + 10, 80, 5);
     } else if (key === 'vib' || key === 'mar' || key === 'glk') {
       const n = key === 'glk' ? 6 : 9;
       for (let k = 0; k < n; k++) {
