@@ -247,6 +247,102 @@ export const beep = voice((ctx, out, ev, t) => {
   o.connect(g).connect(out);
 }, 0.4);
 
+// Electric guitar for the 1969 radio styles. 'soft' is clean, 'vib' a
+// bluesy crunch with vibrato, 'sus' a fuzz lead, 'hit' a crunchy chord stab
+// and 'stac' a palm-muted chug. Two detuned saws through a soft clipper and a
+// speaker-cabinet filter, one clipper per string so chords stay clear.
+const curves = new Map();
+function clipCurve(k) {
+  if (!curves.has(k)) {
+    const c = new Float32Array(1024);
+    for (let i = 0; i < c.length; i++) {
+      const x = (i / (c.length - 1)) * 2 - 1;
+      c[i] = Math.tanh(k * x) / Math.tanh(k);
+    }
+    curves.set(k, c);
+  }
+  return curves.get(k);
+}
+const GTR = {
+  soft: { drive: 1.2, clip: 1.5, tone: 2600, a: 0.003, decay: 1.4, s: 0.15, vib: 0, gain: 0.22 },
+  vib: { drive: 3, clip: 3, tone: 2400, a: 0.004, decay: 1.2, s: 0.55, vib: 22, gain: 0.2 },
+  sus: { drive: 8, clip: 6, tone: 2900, a: 0.004, decay: 2, s: 0.8, vib: 18, gain: 0.15 },
+  hit: { drive: 4, clip: 4, tone: 2200, a: 0.003, decay: 0.6, s: 0.4, vib: 0, gain: 0.13 },
+  stac: { drive: 4, clip: 4, tone: 900, a: 0.002, decay: 0.12, s: 0.1, vib: 0, gain: 0.16 },
+};
+export const guitar = voice((ctx, out, ev, t, dur) => {
+  const P = GTR[ev.a] || GTR.hit;
+  const f = mtof(ev.m);
+  const end = t + (ev.a === 'stac' ? Math.min(dur, 0.2) : dur);
+  const stop = end + 0.4;
+  const from = ev.a === 'sus' || ev.a === 'vib' ? glideFrom(ctx, 'gtr', ev, t) : null;
+  const pre = ctx.createGain();
+  pre.gain.value = P.drive;
+  for (const [dt, type, g] of [[-6, 'sawtooth', 0.5], [5, 'sawtooth', 0.5], [0, 'triangle', 0.4]]) {
+    const o = osc(ctx, type, f, t, stop);
+    o.detune.value = dt;
+    if (from != null) {
+      o.frequency.setValueAtTime(mtof(from), t);
+      o.frequency.exponentialRampToValueAtTime(f, t + 0.06);
+    }
+    if (P.vib) {
+      const l = osc(ctx, 'sine', 5.2, t, stop);
+      const lg = ctx.createGain();
+      lg.gain.setValueAtTime(0, t);
+      lg.gain.linearRampToValueAtTime(P.vib, t + Math.min(0.5, dur));
+      l.connect(lg).connect(o.detune);
+    }
+    const og = ctx.createGain();
+    og.gain.value = g;
+    o.connect(og).connect(pre);
+  }
+  // the pick: the string is brighter for a moment
+  const pick = ctx.createBiquadFilter();
+  pick.type = 'lowpass';
+  pick.frequency.setValueAtTime(P.tone * 2.2, t);
+  pick.frequency.setTargetAtTime(P.tone, t + 0.01, 0.05);
+  const sh = ctx.createWaveShaper();
+  sh.curve = clipCurve(P.clip);
+  sh.oversample = '2x';
+  const cab = ctx.createBiquadFilter();
+  cab.type = 'lowpass';
+  cab.frequency.value = P.tone;
+  cab.Q.value = 0.9;
+  const mid = ctx.createBiquadFilter();
+  mid.type = 'peaking';
+  mid.frequency.value = 800;
+  mid.gain.value = 4;
+  mid.Q.value = 0.8;
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 90;
+  const amp = env(ctx, t, { a: P.a, peak: P.gain * (0.4 + 0.6 * ev.v), d: P.decay, s: P.s, end, r: 0.08 });
+  pre.connect(pick).connect(sh).connect(cab).connect(mid).connect(hp).connect(amp);
+  amp.connect(out);
+}, 0.6);
+
+// Tambourine: jingles (bright noise through two resonances) with a quick decay.
+export const tambourine = voice((ctx, out, ev, t) => {
+  const src = noise(ctx);
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 5000;
+  const pk = ctx.createBiquadFilter();
+  pk.type = 'peaking';
+  pk.frequency.value = 9000;
+  pk.Q.value = 3;
+  pk.gain.value = 10;
+  const g = ctx.createGain();
+  const lvl = 0.25 * ev.v;
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(lvl, t + 0.004);
+  g.gain.setTargetAtTime(lvl * 0.4, t + 0.006, 0.02);
+  g.gain.setTargetAtTime(0, t + 0.05, 0.06);
+  src.connect(hp).connect(pk).connect(g).connect(out);
+  src.start(t, Math.random() * 0.5);
+  src.stop(t + 0.4);
+}, 0.5);
+
 // Choir pad: sawtooths through two vowel formants ("aah").
 export const vox = voice((ctx, out, ev, t, dur) => {
   const f = mtof(ev.m);

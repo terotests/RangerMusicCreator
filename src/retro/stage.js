@@ -29,6 +29,7 @@ function glow(g, x, y, r, col, a) {
 const SPACE_SEATS = {
   thr: { x: 600, y: 330, label: 'THEREMIN', col: [140, 255, 220] },
   moog: { x: 1000, y: 222, label: 'MOOG', col: [255, 140, 90] },
+  gtr: { x: 205, y: 225, label: 'GUITAR', col: [255, 110, 110] },
   vib: { x: 420, y: 360, label: 'VIBES', col: [255, 210, 120] },
   mar: { x: 790, y: 360, label: 'MARIMBA', col: [255, 170, 110] },
   org: { x: 960, y: 345, label: 'ORGAN', col: [255, 120, 160] },
@@ -44,7 +45,7 @@ const SPACE_SEATS = {
   cb: { x: 1110, y: 400, label: 'BASS', col: [220, 170, 120] },
   perc: { x: 600, y: 415, label: 'BONGOS · CONGAS · MARACAS', col: [255, 150, 90] },
 };
-const PERC = new Set(['kick', 'bgh', 'bgl', 'cgh', 'cgl', 'clv', 'gui', 'mrc', 'tap', 'ride', 'hh', 'timp', 'cym']);
+const PERC = new Set(['kick', 'snr', 'tamb', 'bgh', 'bgl', 'cgh', 'cgl', 'clv', 'gui', 'mrc', 'tap', 'ride', 'hh', 'timp', 'cym']);
 
 export class SpaceStage extends BaseStage {
   constructor(canvas) {
@@ -200,6 +201,23 @@ export class SpaceStage extends BaseStage {
         }
         g.stroke();
       }
+    } else if (key === 'gtr') {
+      // A solid-body guitar on a slant; the strings shimmer while it plays.
+      g.save();
+      g.translate(x, y);
+      g.rotate(-0.5);
+      g.beginPath();
+      g.ellipse(-14, 0, 16, 12, 0, 0, Math.PI * 2);
+      g.stroke();
+      g.fillRect(0, -2, 40, 4);
+      g.fillRect(40, -4, 8, 8);
+      if (a > 0.05) for (let k = -1; k <= 1; k++) {
+        g.beginPath();
+        g.moveTo(-20, k * 2 + Math.sin(t * 40 + k) * a);
+        g.lineTo(40, k * 1.5);
+        g.stroke();
+      }
+      g.restore();
     } else if (key === 'moog') {
       // A modular cabinet: rows of knobs and patch cords that swing as it plays.
       g.strokeRect(x - 36, y - 26, 72, 34);

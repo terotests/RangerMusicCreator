@@ -501,6 +501,14 @@ export const DRUMS = {
   orbit: {},
   apollo: { kick: grid('x.....x.x.......', 0.7), tap: grid('....x.......x...', 0.62), hh: grid('x.x.x.x.x.x.x.x.', 0.3), cgl: grid('......x.......x.', 0.35) },
   apolloB: { kick: grid('x...x...x...x...', 0.6), tap: grid('....x.......x...', 0.62), ride: grid('x.x.x.x.x.x.x.x.', 0.3), mrc: grid('..x...x...x...x.', 0.3) },
+  // Radio 1969
+  rock69: { kick: grid('x.....x.x.......', 0.8), snr: grid('....x.......x...', 0.8), hh: grid('x.x.x.x.x.x.x.x.', 0.4) },
+  rock69B: { kick: grid('x.x...x.x.x.....', 0.8), snr: grid('....x.......x...', 0.8), ride: grid('x.x.x.x.x.x.x.x.', 0.4) },
+  soul69: { kick: grid('x..x..x...x.....', 0.7), snr: grid('....x.......x...', 0.7), tamb: grid('....x.......x...', 0.8), hh: grid('x.x.x.x.x.x.x.x.', 0.3) },
+  soul69B: { kick: grid('x..x..x...x.....', 0.7), snr: grid('x...x...x...x...', 0.55), tamb: grid('x...x...x...x...', 0.7), hh: grid('x.x.x.x.x.x.x.x.', 0.3) },
+  blues69: { kick: grid('x.......x.......', 0.65), snr: grid('....x.......x...', 0.7), hh: grid('x.x.x.x.x.x.x.x.', 0.35) },
+  blues69B: { kick: grid('x.......x.......', 0.65), snr: grid('....x.......x...', 0.7), ride: grid('x.x.x.x.x.x.x.x.', 0.4) },
+  pop69: { kick: grid('x.......x.x.....', 0.6), snr: grid('....x.......x...', 0.6), tamb: grid('x.x.x.x.x.x.x.x.', 0.45) },
   swing: { ride: grid('x...x..xx...x..x', 0.4), hh: grid('....x.......x...', 0.35), tap: grid('................', 0.3) },
   // Synthwave
   outrun: { kick: grid('x.......x.x.....', 0.85), snare: grid('....x.......x...', 0.8), hat: grid('x.x.x.x.x.x.x.x.', 0.45) },
@@ -553,6 +561,9 @@ function fillPart(c) {
     for (let k = 0; k < 6; k++) out.push({ i: 'tap', a: 'hit', b: 2.5 + k * 0.25, d: 0.25, v: 0.5 + k * 0.08 });
   } else if (S.fill === 'congas') {
     [[2, 'cgh'], [2.5, 'cgh'], [3, 'cgl'], [3.25, 'cgl'], [3.5, 'cgl'], [3.75, 'cgl']].forEach(([b, p], k) => out.push({ i: p, a: 'hit', b, d: 0.25, v: 0.55 + k * 0.06 }));
+  } else if (S.fill === 'snare') {
+    // A drummer's fill on the snare into the next section.
+    [2, 2.5, 3, 3.25, 3.5, 3.75].forEach((b, k) => b < c.beats && out.push({ i: 'snr', a: 'hit', b, d: 0.25, v: 0.45 + k * 0.08 }));
   } else if (S.fill === 'timp') {
     out.push({ i: 'timp', a: 'roll', b: c.beats - 2, d: 2, m: fit((c.key + 7) % 12 + 36, 40, 52), v: 0.35, v2: 0.75 });
   }
