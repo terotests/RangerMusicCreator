@@ -174,6 +174,14 @@ through the form.
   samples for strings, flute, harp, celeste, timpani, muted brass, piano,
   marimba and Latin percussion; vibraphone, organ, theremin, flying saucers
   and birds are synthesized.
+  - **APOLLO** tab (1969–70): music around Apollo 11 and Apollo 13. The
+    public-domain works tied to the missions (the New World Largo, which
+    Armstrong took to the Moon on tape; Also sprach Zarathustra, which opened
+    the Apollo 13 TV broadcast; The Blue Danube from the 1968 film), four
+    originals in the 1969 style (Countdown, Tranquility Base, Aquarius
+    Lifeboat, Splashdown) and MOON SHOT 1969, which remixes these themes with
+    a synthesized Moog-style lead, a 1969 beat and radio beeps.
+    `spaceage.html?piece=countdown`, `spaceage.html?style=apollo&seed=5`.
 - **Synthwave** (1980s): OUTRUN, ITALO DISCO, DARKSYNTH, DREAMWAVE, TV THEME,
   plus Grieg's In the Hall of the Mountain King (speeding up every round)
   and the opening of Bach's Toccata in D minor. Everything is synthesized:

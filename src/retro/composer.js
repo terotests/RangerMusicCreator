@@ -499,6 +499,8 @@ export const DRUMS = {
   jungle: { cgl: grid('x..x..x.x..x..x.', 0.6), cgh: grid('..x...x...x...xx', 0.45), bgh: grid('x.x.x.x.x.x.x.x.', 0.3), mrc: grid('xxxxxxxxxxxxxxxx', 0.2) },
   waltz: { tap: grid('....x...x...', 0.35), ride: grid('x...........', 0.35) },
   orbit: {},
+  apollo: { kick: grid('x.....x.x.......', 0.7), tap: grid('....x.......x...', 0.62), hh: grid('x.x.x.x.x.x.x.x.', 0.3), cgl: grid('......x.......x.', 0.35) },
+  apolloB: { kick: grid('x...x...x...x...', 0.6), tap: grid('....x.......x...', 0.62), ride: grid('x.x.x.x.x.x.x.x.', 0.3), mrc: grid('..x...x...x...x.', 0.3) },
   swing: { ride: grid('x...x..xx...x..x', 0.4), hh: grid('....x.......x...', 0.35), tap: grid('................', 0.3) },
   // Synthwave
   outrun: { kick: grid('x.......x.x.....', 0.85), snare: grid('....x.......x...', 0.8), hat: grid('x.x.x.x.x.x.x.x.', 0.45) },
@@ -595,7 +597,7 @@ export class RetroComposer {
     const wantMinor = P ? !!P.minor : rng.chance(S.minor ?? 0);
     const beats = P?.beats || S.beats || 4;
     // Style songs are remixes of a public-domain theme.
-    const theme = P || S.remix === false ? null : pickTheme(rng, beats, wantMinor);
+    const theme = P || S.remix === false ? null : pickTheme(rng, beats, wantMinor, S.themes);
     const minor = theme ? theme.minor : wantMinor;
     const key = P ? P.key : rng.pick(S.keys);
     const SS = { ...S, beats, isMinor: minor };
@@ -609,6 +611,11 @@ export class RetroComposer {
       if (P?.sections?.[k]) {
         const ps = P.sections[k];
         sec[k] = { chords: chordBars(ps.chords, beats), melody: ps.melody };
+      } else if (P && k === 'B') {
+        // A piece given only its theme: the bridge carries the theme's motif
+        // through the piece's B chords, as a style remix does.
+        const chords = chordBars(P.bChords || rng.pick(progs.B), beats);
+        sec[k] = { chords, melody: sequenceTheme(sec.A, chords, key, minor, SS, lo, hi) };
       } else if (theme && k === 'A') {
         sec[k] = { chords: chordBars(theme.chords, beats), melody: remixTheme(rng, theme, SS, key, lo, hi) };
       } else {
@@ -799,7 +806,10 @@ export class RetroComposer {
   finish(events, c) {
     const out = [];
     this.clearLead(events, c);
+    // A style's own balance: `mix` scales a player's (non-lead) velocities.
+    const mix = c.S.mix;
     for (const e of events) {
+      if (mix?.[e.i] && !e.lead) e.v = Math.max(0.03, e.v * mix[e.i]);
       if (e.m != null && this.players.range[e.i]) {
         const [lo, hi] = this.players.range[e.i];
         if (e.m < lo || e.m > hi) e.m = fit(e.m, lo, hi);
@@ -873,8 +883,8 @@ export class RetroComposer {
 // ---- remixes ------------------------------------------------------------------
 
 // A theme in the wanted mode and metre (any mode when none fits).
-function pickTheme(rng, beats, minor) {
-  const fit = THEMES.filter((t) => t.beats === beats);
+function pickTheme(rng, beats, minor, pool = THEMES) {
+  const fit = pool.filter((t) => t.beats === beats);
   if (!fit.length) return null;
   const same = fit.filter((t) => t.minor === minor);
   return rng.pick(same.length ? same : fit);

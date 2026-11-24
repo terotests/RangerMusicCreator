@@ -130,10 +130,13 @@ export function runPage(CONFIG) {
   // ---- UI ----------------------------------------------------------------------
 
   function renderCards() {
-    const box = $('tab-styles');
-    box.innerHTML = '';
+    // Styles and pieces with a `tab` go to that tab (the Space Age page's
+    // APOLLO), after its styles; the rest to STYLES and CLASSICS.
+    const tabOf = (x, def) => (x.tab && $('tab-' + x.tab)) || $(def);
+    for (const el of document.querySelectorAll('.cards')) el.innerHTML = '';
     for (const id of CONFIG.styleIds) {
       const s = CONFIG.styles[id];
+      const box = tabOf(s, 'tab-styles');
       const b = document.createElement('button');
       b.className = 'card' + (!state.piece && state.style === id ? ' on' : '');
       b.innerHTML = `<b>${s.name}</b><small>${s.desc}</small>`;
@@ -147,7 +150,6 @@ export function runPage(CONFIG) {
     for (const o of CONFIG.options || []) {
       const ob = $('tab-' + o.tab);
       if (!ob) continue;
-      ob.innerHTML = '';
       for (const it of [{ id: 'auto', name: o.autoName || 'AUTO', desc: o.autoDesc || 'The machine chooses.' }, ...o.items]) {
         const b = document.createElement('button');
         b.className = 'card' + (state[o.key] === it.id ? ' on' : '');
@@ -159,13 +161,12 @@ export function runPage(CONFIG) {
         ob.appendChild(b);
       }
     }
-    const pb = $('tab-pieces');
-    if (!pb) return;
-    pb.innerHTML = '';
     for (const p of CONFIG.pieces) {
+      const pb = tabOf(p, 'tab-pieces');
+      if (!pb) continue;
       const b = document.createElement('button');
       b.className = 'card' + (state.piece === p.id ? ' on' : '');
-      b.innerHTML = `<b>${p.name}</b><small>${p.desc}</small><div class="pd">Public domain · ${p.pd}</div>`;
+      b.innerHTML = `<b>${p.name}</b>${p.mission ? `<i class="nick">${p.mission}</i>` : ''}<small>${p.desc}</small><div class="pd">${p.tag || `Public domain · ${p.pd}`}</div>`;
       b.onclick = () => {
         state.piece = p.id;
         restart();
@@ -353,7 +354,8 @@ export function runPage(CONFIG) {
         document.querySelectorAll('.tabs button').forEach((x) => ($('tab-' + x.dataset.tab).hidden = x !== b));
       }),
     );
-    if (state.piece) document.querySelector('[data-tab="pieces"]')?.dispatchEvent(new Event('click'));
+    const openTab = state.piece ? CONFIG.pieceBy[state.piece].tab || 'pieces' : CONFIG.styles[state.style].tab;
+    if (openTab) document.querySelector(`[data-tab="${openTab}"]`)?.dispatchEvent(new Event('click'));
 
     $('play').onclick = () => (playing ? stop() : play());
     $('new').onclick = () => {

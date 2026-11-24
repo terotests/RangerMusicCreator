@@ -2,6 +2,7 @@
 // Config for spaceage.html and synthwave.html (picked by <body data-band>),
 // run by src/stagepage.js.
 // URLs: spaceage.html?style=orbit&seed=7, spaceage.html?piece=greensleeves,
+//       spaceage.html?piece=countdown (APOLLO tab), spaceage.html?style=apollo&seed=5,
 //       synthwave.html?style=dark&seed=3, synthwave.html?piece=mountain
 
 import { runPage } from '../stagepage.js';

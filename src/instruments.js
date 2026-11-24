@@ -140,6 +140,8 @@ export const PRESETS = {
   bell: { kind: 'fm', ratio: 3.5, index: 2.4, modDecay: 0.9, amp: { a: 0.003, d: 2.6, s: 0, r: 1.2 }, gain: 0.26 },
   pluck: { osc: [{ type: 'sawtooth', gain: 0.5 }, { type: 'square', detune: 5, gain: 0.35 }], filter: { freq: 900, q: 2, env: 4200, decay: 0.12 }, amp: { a: 0.002, d: 0.35, s: 0.1, r: 0.2 }, gain: 0.28 },
   sawLead: { osc: [{ type: 'sawtooth', detune: -7, gain: 0.5 }, { type: 'sawtooth', detune: 7, gain: 0.5 }], filter: { freq: 1800, q: 1.5, env: 2200, decay: 0.3 }, amp: { a: 0.01, d: 0.4, s: 0.7, r: 0.25 }, gain: 0.2, vibrato: { rate: 5.5, depth: 14, delay: 0.25 }, glide: 0.05 },
+  // A 1969 modular synth lead: square and saw through a resonant low-pass that opens on each note, with portamento.
+  apolloMoog: { osc: [{ type: 'square', gain: 0.45 }, { type: 'sawtooth', detune: 5, gain: 0.4 }, { type: 'square', oct: -1, gain: 0.25 }], filter: { freq: 1700, q: 4, env: 2400, decay: 0.25 }, amp: { a: 0.006, d: 0.25, s: 0.8, r: 0.12 }, gain: 0.45, vibrato: { rate: 5, depth: 8, delay: 0.35 }, glide: 0.07 },
   chipLead: { osc: [{ type: 'pulse25', gain: 1 }], filter: { freq: 7000, q: 0.3 }, amp: { a: 0.002, d: 0.1, s: 0.7, r: 0.04 }, gain: 0.182, vibrato: { rate: 6, depth: 18, delay: 0.15 } },
   flute: { osc: [{ type: 'sine', gain: 0.8 }, { type: 'triangle', gain: 0.35 }], filter: { freq: 3000, q: 0.5 }, amp: { a: 0.06, d: 0.3, s: 0.8, r: 0.2 }, gain: 0.32, vibrato: { rate: 5, depth: 12, delay: 0.2 }, breath: 0.05 },
   melodica: { osc: [{ type: 'square', gain: 0.4 }, { type: 'sawtooth', detune: 4, gain: 0.3 }], filter: { freq: 1600, q: 0.8 }, amp: { a: 0.03, d: 0.3, s: 0.75, r: 0.15 }, gain: 0.2, vibrato: { rate: 4.5, depth: 10, delay: 0.3 } },

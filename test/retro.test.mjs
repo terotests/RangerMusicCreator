@@ -190,3 +190,25 @@ test('retro style songs are remixes of public-domain themes', async () => {
     for (let k = 0; k < 40; k++) assert.ok(c.nextBar());
   }
 });
+
+test('APOLLO: pieces fill their bars and MOON SHOT remixes only mission themes', async () => {
+  const { APOLLO_PIECES, APOLLO_THEMES } = await import('../src/retro/apollo.js');
+  assert.ok(APOLLO_PIECES.length >= 6);
+  for (const p of APOLLO_PIECES) {
+    assert.equal(p.tab, 'apollo');
+    assert.ok(p.pd || p.tag, `${p.id}: licence line`);
+    for (const [k, sec] of Object.entries(p.sections)) {
+      const n = sec.chords.trim().split(/\s+/).length;
+      assert.equal(sec.melody.length, n, `${p.id} ${k}: ${sec.melody.length} melody bars for ${n} chord bars`);
+      sec.melody.forEach((bar, i) => {
+        const end = Math.max(0, ...bar.map((x) => x.b + x.d));
+        assert.ok(end <= p.beats + 1e-6, `${p.id} ${k} bar ${i + 1} is ${end} beats long`);
+      });
+    }
+  }
+  const ids = new Set(APOLLO_THEMES.map((t) => t.id));
+  for (let seed = 1; seed <= 12; seed++) {
+    const c = new SpaceComposer({ seed, style: 'apollo' });
+    assert.ok(ids.has(c.song.theme.id), `seed ${seed}: theme ${c.song.theme.id}`);
+  }
+});

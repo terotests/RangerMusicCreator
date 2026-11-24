@@ -232,6 +232,21 @@ export const lead = voice((ctx, out, ev, t, dur) => {
   playNote(ctx, out, t, ev.m, dur, ev.v, ev.a === 'soft' ? 'chipLead' : 'sawLead', from != null ? { glideFrom: from } : {});
 }, 1);
 
+// The Space Age page's 1969 Moog-style lead (monophonic, gliding).
+export const moog = voice((ctx, out, ev, t, dur) => {
+  const from = glideFrom(ctx, 'moog', ev, t);
+  playNote(ctx, out, t, ev.m, dur, ev.v, 'apolloMoog', from != null ? { glideFrom: from } : {});
+}, 0.8);
+
+// Radio beeps like the ones heard on the Apollo air-to-ground loop: a short
+// pure tone, a little above or below 2.5 kHz.
+export const beep = voice((ctx, out, ev, t) => {
+  const f = ev.a === 'fall' ? 2475 : 2525;
+  const o = osc(ctx, 'sine', f, t, t + 0.3);
+  const g = env(ctx, t, { a: 0.004, peak: 0.05 * ev.v, d: 0.05, s: 1, end: t + 0.25, r: 0.01 });
+  o.connect(g).connect(out);
+}, 0.4);
+
 // Choir pad: sawtooths through two vowel formants ("aah").
 export const vox = voice((ctx, out, ev, t, dur) => {
   const f = mtof(ev.m);
