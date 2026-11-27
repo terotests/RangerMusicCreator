@@ -2,7 +2,7 @@
 // MODERN: the Pop Machine's bass-led dance tracks. Here the sub bass is the
 // lead: long low notes that walk high, middle, low and then bend up a little,
 // pumping under a four-on-the-floor kick and a clap on two and four. A simple
-// string theme and quiet horns sit well below the bass. The drum machine
+// lead theme, violins and quiet horns sit well below the bass. The drum machine
 // fills in only at the end of a section.
 //
 // Form: intro, drop (the 16-bar main theme), variation, breakdown (the bass
@@ -249,7 +249,7 @@ export class ModernComposer {
       // The breakdown ends on a drum hit: a roll, then one big kick and clap.
       if (lastBar) {
         for (let b = 1; b < 3.5 - 1e-6; b += 0.25) out.push({ i: 'snare', a: b < 2 ? 'ghost' : 'hit', b, d: 0.2, v: clamp(0.18 + 0.28 * (b - 1), 0.1, 0.85) });
-        out.push({ i: 'dkick', a: 'boom', b: 3.5, d: 0.5, v: 1 }, { i: 'clap', a: 'hit', b: 3.5, d: 0.3, v: 0.95 }, { i: 'etom', a: 'hit', b: 3.5, d: 0.5, m: 40, v: 0.7 });
+        out.push({ i: 'dkick', a: 'boom', b: 3.5, d: 0.5, v: 1 }, { i: 'mclap', a: 'flam', b: 3.5, d: 0.3, v: 0.85 }, { i: 'etom', a: 'hit', b: 3.5, d: 0.5, m: 40, v: 0.7 });
       }
       return out;
     }
@@ -262,8 +262,8 @@ export class ModernComposer {
     for (let b = 0; b < 4; b++) {
       if (fill && b === 3) continue;
       out.push({ i: 'dkick', a: 'hit', b, d: 0.3, v: clamp((b === 0 ? 0.95 : 0.88) * (0.85 + 0.2 * e), 0.1, 1) });
-      if (clapOn && (b === 1 || b === 3) && !(fill && b === 3)) out.push({ i: 'clap', a: 'hit', b, d: 0.3, v: clamp(0.62 + 0.25 * e, 0.1, 1) });
     }
+    if (clapOn) out.push(...this.claps(step, e, fill));
     // A soft offbeat hat only when the track is at full pace.
     if (e >= S.hat && sec !== 'intro') for (let b = 0.5; b < 4; b += 1) out.push({ i: 'hat', a: 'hit', b, d: 0.2, v: 0.22 + 0.1 * (b === 3.5 ? 1 : 0) });
     // The drum machine lifts only at the end of a section: a snare and tom fill.
@@ -271,6 +271,28 @@ export class ModernComposer {
       const toms = [55, 52, 48, 45];
       for (let k = 0; k < 4; k++) out.push({ i: 'snare', a: 'hit', b: 3 + k * 0.25, d: 0.2, v: 0.4 + 0.15 * k });
       if (sec !== 'intro') toms.forEach((m, k) => out.push({ i: 'etom', a: 'hit', b: 2 + k * 0.25, d: 0.25, m, v: 0.45 + 0.05 * k }));
+    }
+    return out;
+  }
+
+  // The clap on two and four, kept below the kick and never quite the same:
+  // beat 4 a little lighter, now and then a flam or a ghost clap before it,
+  // a pushed clap at the end of every eighth bar, and the varied sections
+  // swap in their own pattern every other bar.
+  claps(step, e, fill) {
+    const rng = this.rng;
+    const out = [];
+    const v = (x) => clamp(x * (0.36 + 0.16 * e) * (0.88 + rng.next() * 0.2), 0.05, 1);
+    const add = (b, x, a = 'hit') => out.push({ i: 'mclap', a, b, d: 0.25, v: v(x) });
+    const varied = step.section.startsWith('variation');
+    add(1, 1, rng.chance(0.15) ? 'flam' : 'hit');
+    if (!fill) {
+      if (varied && step.i % 2 === 1) {
+        add(2.75, 0.45, 'soft');
+        add(3, 0.85);
+      } else add(3, 0.9, rng.chance(0.12) ? 'flam' : 'hit');
+      if (step.i % 8 === 7) add(3.75, 0.55, 'soft');
+      else if (rng.chance(0.18)) add(rng.pick([1.75, 2.75, 0.75]), 0.35, 'soft');
     }
     return out;
   }
@@ -321,6 +343,17 @@ export class ModernComposer {
       const solo = sec === 'breakdown';
       const sv = solo ? 0.95 : sec === 'intro' ? 0.14 : 0.19;
       add(notes.map((x) => ({ i: 'theme', a: 'sus', b: x.b, d: Math.max(0.2, x.d * 0.96), m: x.m, v: c.vel(sv) })));
+      // The violins: in the drops a simple figure that repeats every bar (two
+      // chord notes above the theme), in the breakdown the theme an octave up.
+      const vv = solo ? 0.62 : sec === 'intro' ? 0.2 : 0.3;
+      if (solo) add(notes.map((x) => ({ i: 'vln', a: 'sus', b: x.b, d: Math.max(0.2, x.d * 0.98), m: x.m + 12, v: c.vel(vv) })));
+      else {
+        const vt = chordPcs(song.key, chord).slice(0, 3);
+        const lad = [];
+        for (let m = song.theme.center + 7; lad.length < 4; m++) if (vt.includes(pc(m))) lad.push(m);
+        const fig = sec.startsWith('variation') ? [[0, 1.5, 1], [1.5, 1, 2], [2.5, 1.5, 1]] : [[0, 2, 1], [2, 2, 2]];
+        add(fig.map(([b, d, k]) => ({ i: 'vln', a: 'sus', b, d: d - 0.05, m: lad[k], v: c.vel(vv) })));
+      }
       if (solo || sec.startsWith('variation') || sec === 'drop2') add(notes.map((x) => ({ i: 'tpluck', a: 'sus', b: x.b, d: Math.max(0.15, Math.min(x.d, 0.9)), m: x.m + 12, v: c.vel(solo ? 0.8 : 0.17) })));
       if (solo) label = step.i === step.len - 1 ? 'THE THEME ENDS ON A DRUM HIT' : 'BREAKDOWN · THE THEME ALONE';
       else if (!label) label = 'THE THEME · SUB BASS ON ITS WAY';
@@ -387,7 +420,7 @@ export class ModernComposer {
     const tones = chordPcs(key, { r: 0, q: song.minor ? 'min' : 'maj' });
     const events = [
       { i: 'dkick', a: 'boom', b: 0, d: 0.5, v: 1 },
-      { i: 'clap', a: 'hit', b: 0, d: 0.3, v: 0.8 },
+      { i: 'mclap', a: 'flam', b: 0, d: 0.3, v: 0.7 },
       { i: 'crash', a: 'hit', b: 0, d: 2, v: 0.5 },
       { i: 'sub', a: 'sus', b: 0, d: 3, m: root, v: 0.85 },
       ...voice(tones, 60, null, 3).map((m) => ({ i: 'pad', a: 'sus', b: 0, d: 4, m, v: 0.35 })),

@@ -30,14 +30,17 @@ test('modern songs are well formed and every player has a sound', () => {
   }
 });
 
-test('the drops pump: a kick on every beat, a clap on two and four, the sub bass louder than the theme', () => {
+test('the drops pump: a kick on every beat, a quieter clap on two and four, the sub bass louder than the theme', () => {
   for (const style of MODERN_STYLE_IDS) {
     const bars = song(style, 5).filter((b) => b.info.section === 'drop');
     assert.equal(bars.length, 16);
     for (const [k, b] of bars.entries()) {
       const kicks = b.events.filter((e) => e.i === 'dkick').map((e) => e.b);
       if (k < 15) assert.deepEqual(kicks, [0, 1, 2, 3]);
-      if (k < 15) assert.deepEqual(b.events.filter((e) => e.i === 'clap').map((e) => e.b), [1, 3]);
+      const claps = b.events.filter((e) => e.i === 'mclap');
+      if (k < 15) assert.ok(claps.some((e) => e.b === 1) && claps.some((e) => e.b === 3));
+      const kickV = Math.min(...b.events.filter((e) => e.i === 'dkick').map((e) => e.v));
+      assert.ok(claps.every((e) => e.v < kickV), `${style} bar ${k}: clap above kick`);
       const sub = b.events.filter((e) => e.i === 'sub');
       const theme = b.events.filter((e) => e.i === 'theme');
       assert.ok(sub.length && theme.length);
