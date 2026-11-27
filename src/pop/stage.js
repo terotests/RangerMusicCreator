@@ -17,9 +17,13 @@ const LOOKS = {
   anthem: [[30, 20, 60], [80, 30, 30], [255, 150, 60], [130, 200, 255]],
   euro: [[26, 8, 60], [6, 2, 20], [0, 230, 255], [255, 80, 220]],
   edm: [[6, 30, 40], [4, 8, 16], [80, 255, 200], [255, 90, 160]],
+  subpulse: [[10, 4, 30], [2, 2, 8], [150, 90, 255], [255, 60, 140]],
+  basshouse: [[30, 4, 10], [6, 2, 4], [255, 70, 50], [255, 200, 60]],
+  nightdrive: [[4, 10, 24], [0, 2, 6], [60, 160, 255], [180, 120, 255]],
 };
-const PATH = [['classical', '1680–1810'], ['baroque', '1966'], ['moog', '1972'], ['tv', '1982'], ['anthem', '1986'], ['euro', '1994'], ['edm', '2015']];
-const METERS = [['DRUMS', 'drums'], ['BASS', 'bass'], ['KEYS', 'keys'], ['PADS', 'pads'], ['RIFF', 'lead']];
+const MODERN = new Set(['subpulse', 'basshouse', 'nightdrive']);
+const PATH = [['classical', '1680–1810'], ['baroque', '1966'], ['moog', '1972'], ['tv', '1982'], ['anthem', '1986'], ['euro', '1994'], ['edm', '2015'], ['modern', '2020s']];
+const METERS = [['DRUMS', 'drums'], ['BASS', 'bass'], ['KEYS', 'keys'], ['PADS · HORNS', 'pads'], ['RIFF · THEME', 'lead']];
 
 export class PopStage extends BaseStage {
   constructor(canvas) {
@@ -106,9 +110,11 @@ export class PopStage extends BaseStage {
       const x = head + (n.t - t) * px;
       const w = Math.max(3, (n.end - n.t) * px - 2);
       if (x + w < rollX || x > rollX + rollW) continue;
-      const y = y1 - ((Math.max(48, Math.min(96, n.m)) - 48) / 48) * (y1 - y0);
+      // The sub bass is drawn two octaves up so its line fits on the roll.
+      const dm = n.p === 'sub' ? n.m + 24 : n.m;
+      const y = y1 - ((Math.max(48, Math.min(96, dm)) - 48) / 48) * (y1 - y0);
       const playing = n.t <= t && n.end >= t;
-      const col = n.p === 'brass' || n.p === 'str' || n.p === 'flute' ? acc2 : acc;
+      const col = n.p === 'brass' || n.p === 'str' || n.p === 'flute' || n.p === 'theme' || n.p === 'tpluck' ? acc2 : acc;
       g.fillStyle = rgba(col, playing ? 1 : 0.55);
       const xx = Math.max(rollX, x);
       g.fillRect(xx, y - 4, Math.min(w, rollX + rollW - xx), 8);
@@ -125,7 +131,8 @@ export class PopStage extends BaseStage {
     g.stroke();
     g.font = '700 12px "Avenir Next", Futura, "Trebuchet MS", sans-serif';
     g.fillStyle = rgba(acc, 0.7);
-    g.fillText(info?.riffName ? `RIFF · ${info.riffName.toUpperCase()}${info.flipped ? ' · MODE FLIPPED' : ''}` : 'RIFF', rollX + 10, y0 + 20);
+    if (info?.rollTitle) g.fillText(info.rollTitle, rollX + 10, y0 + 20);
+    else g.fillText(info?.riffName ? `RIFF · ${info.riffName.toUpperCase()}${info.flipped ? ' · MODE FLIPPED' : ''}` : 'RIFF', rollX + 10, y0 + 20);
 
     // What is done to the riff.
     g.textAlign = 'center';
@@ -162,7 +169,7 @@ export class PopStage extends BaseStage {
     g.stroke();
     PATH.forEach(([id, year], k) => {
       const x = 40 + k * pw;
-      const on = id === this.style || (id === 'classical' && info?.riffId && info.riffId !== 'motif');
+      const on = id === this.style || (id === 'modern' && MODERN.has(this.style)) || (id === 'classical' && info?.riffId && info.riffId !== 'motif');
       g.fillStyle = rgba(on ? acc : [255, 255, 255], on ? 1 : 0.3);
       g.beginPath();
       g.arc(x, 482, on ? 7 + 2 * pulse : 4, 0, Math.PI * 2);

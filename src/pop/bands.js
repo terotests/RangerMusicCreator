@@ -4,7 +4,7 @@
 // staccato synth to power-chord guitar, supersaws and a pumping pad. No samples.
 
 import * as V from '../retro/voices.js';
-import { playNote, hat as hatDrum, driveCurve } from '../instruments.js';
+import { playNote, hat as hatDrum, kick as kickDrum, driveCurve } from '../instruments.js';
 import { mtof } from '../theory.js';
 
 // The Orchestra's synth-voice form: (ctx, out, ev, t, dur, active). A silent
@@ -158,14 +158,97 @@ export const popSnare = voice((ctx, out, ev, t) => {
   n.stop(t + 0.2);
 }, 0.3);
 
+// ---- MODERN: the sub bass and its kit ---------------------------------------------
+
+// Sub bass, the lead voice of the MODERN machines. A pure sine for the floor,
+// a driven triangle through a low-pass so the line is heard on small speakers
+// too, and a quiet octave. Long notes glide into each other (ev.glide), can
+// bend up a little at the end (ev.rise semitones, from ev.riseAt of the note)
+// and duck on every beat where the kick hits (ev.spb: the sidechain pump).
+const subLast = new WeakMap();
+export const subBass = voice((ctx, out, ev, t, dur) => {
+  const f = mtof(ev.m);
+  const end = t + dur;
+  const stop = end + 0.3;
+  const prev = subLast.get(ctx);
+  subLast.set(ctx, { m: ev.m + (ev.rise || 0), end });
+  const from = ev.glide && prev && Math.abs(prev.end - t) < 0.12 ? mtof(prev.m) : null;
+  const v = Math.max(0.05, Math.min(1, ev.v));
+  const bend = (param, mult) => {
+    param.setValueAtTime((from ?? f) * mult, t);
+    if (from) param.exponentialRampToValueAtTime(f * mult, t + 0.07);
+    if (ev.rise) {
+      const r0 = Math.max(t + 0.08, t + dur * (ev.riseAt ?? 0.6));
+      param.setValueAtTime(f * mult, r0);
+      param.exponentialRampToValueAtTime(f * mult * Math.pow(2, ev.rise / 12), Math.max(r0 + 0.05, end));
+    }
+  };
+  const mix = ctx.createGain();
+  mix.gain.value = 1;
+  const sine = ctx.createOscillator();
+  sine.type = 'sine';
+  bend(sine.frequency, 1);
+  const sg = ctx.createGain();
+  sg.gain.value = 0.62;
+  sine.connect(sg).connect(mix);
+  const oct = ctx.createOscillator();
+  oct.type = 'sine';
+  bend(oct.frequency, 2);
+  const og = ctx.createGain();
+  og.gain.value = 0.12;
+  oct.connect(og).connect(mix);
+  const tri = ctx.createOscillator();
+  tri.type = 'triangle';
+  bend(tri.frequency, 1);
+  const tg = ctx.createGain();
+  tg.gain.value = 0.5;
+  const ws = ctx.createWaveShaper();
+  ws.curve = driveCurve(ctx, 0.6);
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.Q.value = 1.2;
+  lp.frequency.setValueAtTime(280 + 520 * v, t);
+  lp.frequency.setTargetAtTime(220 + 260 * v, t + 0.02, 0.25);
+  const tl = ctx.createGain();
+  tl.gain.value = 0.22;
+  tri.connect(tg).connect(ws).connect(lp).connect(tl).connect(mix);
+  // The pump: down on each beat, back up before the next one.
+  const pump = ctx.createGain();
+  pump.gain.value = 1;
+  if (ev.spb) {
+    const first = ((1 - (ev.b % 1)) % 1) * ev.spb;
+    for (let bt = t + first; bt < end - 0.02; bt += ev.spb) {
+      pump.gain.setValueAtTime(0.28, bt);
+      pump.gain.setTargetAtTime(1, bt + 0.012, ev.spb * 0.16);
+    }
+  }
+  const amp = ctx.createGain();
+  const peak = 0.62 * v;
+  amp.gain.setValueAtTime(from ? peak : 0, t);
+  if (!from) amp.gain.linearRampToValueAtTime(peak, t + 0.008);
+  amp.gain.setValueAtTime(peak, Math.max(t + 0.01, end - 0.01));
+  amp.gain.setTargetAtTime(0, Math.max(t + 0.01, end - 0.01), 0.025);
+  mix.connect(pump).connect(amp).connect(out);
+  for (const o of [sine, oct, tri]) {
+    o.start(t);
+    o.stop(stop);
+  }
+}, 0.4);
+
+// A tight dance kick that leaves the very bottom to the sub bass, and a
+// heavier one for the hit that ends the breakdown.
+export const danceKick = voice((ctx, out, ev, t) => kickDrum(ctx, out, t, ev.v, ev.a === 'boom'
+  ? { pitch: 48, end: 34, decay: 0.7, click: 0.5, drive: 0.3, gain: 1.3 }
+  : { pitch: 58, end: 46, decay: 0.26, click: 0.45, drive: 0.2, gain: 1.05 }), 0.8);
+
 const tamb = voice((ctx, out, ev, t) => hatDrum(ctx, out, t, ev.v, { color: 7500, gain: 0.1, decay: 0.07 }, false), 0.4);
 
 export const POP_SECTION_OF = {
-  kick: 'drums', snare: 'drums', clap: 'drums', hat: 'cymbals', crash: 'cymbals', etom: 'drums', sweep: 'cymbals', tamb: 'cymbals',
-  bass: 'bass', mbass: 'bass', pbass: 'bass',
+  kick: 'drums', dkick: 'drums', snare: 'drums', clap: 'drums', hat: 'cymbals', crash: 'cymbals', etom: 'drums', sweep: 'cymbals', tamb: 'cymbals',
+  bass: 'bass', sub: 'bass', mbass: 'bass', pbass: 'bass',
   hpsi: 'keys', ep: 'keys', piano: 'keys', organ: 'keys', arp: 'keys', bell: 'keys', gtr: 'keys', stab: 'keys',
-  pad: 'pads', str: 'pads', vox: 'pads', pump: 'pads',
-  lead: 'lead', moog: 'lead', saw: 'lead', pluck: 'lead', brass: 'lead', flute: 'lead',
+  pad: 'pads', str: 'pads', horns: 'pads', vox: 'pads', pump: 'pads',
+  lead: 'lead', theme: 'lead', tpluck: 'lead', moog: 'lead', saw: 'lead', pluck: 'lead', brass: 'lead', flute: 'lead',
 };
 
 export const POP_SECTIONS = [
@@ -177,7 +260,7 @@ export const POP_SECTIONS = [
   ['lead', 'THE RIFF'],
 ];
 
-export const POP_LEADS = new Set(['lead', 'moog', 'saw', 'pluck', 'brass', 'flute', 'hpsi', 'bell']);
+export const POP_LEADS = new Set(['sub', 'theme', 'tpluck', 'lead', 'moog', 'saw', 'pluck', 'brass', 'flute', 'hpsi', 'bell']);
 
 const seat = (pan, depth, gain) => ({ pan, depth, gain });
 
@@ -186,11 +269,11 @@ export const POP_BAND = {
   sections: POP_SECTIONS.map(([k]) => k),
   sets: {}, hits: {}, kit: {}, setGain: {}, ring: new Set(), ensemble: [],
   synth: {
-    kick: V.kick, snare: popSnare, clap: V.clap, hat: metalHat, crash: V.crash, etom: V.etom, sweep: V.sweep, tamb,
-    bass: V.synthBass, mbass: preset('moogBass', 0.5), pbass: preset('pickBass', 0.6),
+    kick: V.kick, dkick: danceKick, snare: popSnare, clap: V.clap, hat: metalHat, crash: V.crash, etom: V.etom, sweep: V.sweep, tamb,
+    bass: V.synthBass, sub: subBass, mbass: preset('moogBass', 0.5), pbass: preset('pickBass', 0.6),
     hpsi: preset('harpsi', 1), ep: V.ep, piano: preset('popPiano', 1.5), organ: V.organ, arp: V.arp, bell: V.bell, gtr: guitar, stab: preset('stab', 0.5),
-    pad: V.pad, str: V.strings, vox: V.vox, pump: preset('pumpPad', 0.4),
-    lead: V.lead, moog: preset('moogLead', 0.4), saw: preset('supersaw', 0.8), pluck: preset('edmPluck', 0.6), brass: V.brass, flute: preset('flute', 0.6),
+    pad: V.pad, str: V.strings, horns: V.brass, vox: V.vox, pump: preset('pumpPad', 0.4),
+    lead: V.lead, theme: V.strings, tpluck: preset('edmPluck', 0.6), moog: preset('moogLead', 0.4), saw: preset('supersaw', 0.8), pluck: preset('edmPluck', 0.6), brass: V.brass, flute: preset('flute', 0.6),
   },
   fx: {
     lead: V.tempoDelay(0.75, 0.38, 0.28),
@@ -201,24 +284,26 @@ export const POP_BAND = {
     bell: V.tempoDelay(0.5, 0.3, 0.25),
     pad: V.chorus(0.003, 0.5),
     str: V.chorus(0.003, 0.5),
+    theme: V.chorus(0.003, 0.5),
+    tpluck: V.tempoDelay(0.75, 0.4, 0.3),
     ep: V.chorus(0.002, 0.4),
     hpsi: V.chorus(0.0015, 0.3),
   },
   release: {}, shortRelease: {},
   seats: {
-    kick: seat(0, 0, 0.72), snare: seat(0.04, 0.1, 0.8), clap: seat(-0.06, 0.1, 0.8), hat: seat(0.3, 0.12, 0.5),
+    kick: seat(0, 0, 0.72), dkick: seat(0, 0, 0.7), snare: seat(0.04, 0.1, 0.8), clap: seat(-0.06, 0.1, 0.8), hat: seat(0.3, 0.12, 0.5),
     crash: seat(-0.3, 0.15, 0.35), etom: seat(-0.2, 0.1, 0.8), sweep: seat(0, 0.2, 0.3), tamb: seat(0.45, 0.2, 0.4),
-    bass: seat(0, 0, 0.68), mbass: seat(0, 0, 0.7), pbass: seat(0, 0, 0.7),
+    bass: seat(0, 0, 0.68), sub: seat(0, 0, 0.62), mbass: seat(0, 0, 0.7), pbass: seat(0, 0, 0.7),
     hpsi: seat(-0.3, 0.2, 0.8), ep: seat(0.3, 0.15, 0.85), piano: seat(0.25, 0.15, 0.8), organ: seat(0.35, 0.25, 0.6), arp: seat(-0.35, 0.1, 0.7),
     bell: seat(0.4, 0.2, 0.7), gtr: seat(-0.25, 0.1, 0.75), stab: seat(0.2, 0.15, 0.7),
-    pad: seat(0, 0.2, 0.8), str: seat(0.2, 0.2, 0.8), vox: seat(-0.2, 0.25, 0.7), pump: seat(0, 0.1, 0.8),
-    lead: seat(0.05, 0.05, 0.9), moog: seat(0.05, 0.05, 0.85), saw: seat(0, 0.05, 0.85), pluck: seat(0.05, 0.05, 0.85), brass: seat(-0.15, 0.15, 0.8), flute: seat(0.1, 0.15, 0.8),
+    pad: seat(0, 0.2, 0.8), horns: seat(-0.3, 0.3, 0.42), str: seat(0.2, 0.2, 0.8), vox: seat(-0.2, 0.25, 0.7), pump: seat(0, 0.1, 0.8),
+    lead: seat(0.05, 0.05, 0.9), theme: seat(0.2, 0.25, 0.9), tpluck: seat(-0.15, 0.15, 0.7), moog: seat(0.05, 0.05, 0.85), saw: seat(0, 0.05, 0.85), pluck: seat(0.05, 0.05, 0.85), brass: seat(-0.15, 0.15, 0.8), flute: seat(0.1, 0.15, 0.8),
   },
 };
 
 export const POP_RANGE = {
-  bass: [28, 55], mbass: [28, 55], pbass: [28, 55],
+  bass: [28, 55], sub: [24, 52], mbass: [28, 55], pbass: [28, 55],
   hpsi: [41, 96], ep: [48, 84], piano: [40, 96], organ: [36, 96], arp: [55, 96], bell: [64, 100], gtr: [38, 64], stab: [48, 84],
-  pad: [45, 84], str: [52, 88], vox: [52, 79], pump: [48, 84],
-  lead: [50, 96], moog: [50, 96], saw: [50, 96], pluck: [50, 96], brass: [48, 86], flute: [60, 96], etom: [38, 62],
+  pad: [45, 84], horns: [48, 76], str: [52, 88], vox: [52, 79], pump: [48, 84],
+  lead: [50, 96], theme: [55, 88], tpluck: [60, 96], moog: [50, 96], saw: [50, 96], pluck: [50, 96], brass: [48, 86], flute: [60, 96], etom: [38, 62],
 };

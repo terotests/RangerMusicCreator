@@ -9,8 +9,11 @@ import { POP_STYLES, POP_STYLE_IDS } from './styles.js';
 import { RIFFS } from './riffs.js';
 import { PROGRESSIONS } from './progressions.js';
 import { PopStage } from './stage.js';
+import { ModernComposer, MODERN_STYLES, MODERN_STYLE_IDS, MODERN_LABELS } from './modern.js';
 
-const STYLES = Object.fromEntries(POP_STYLE_IDS.map((id) => [id, { ...POP_STYLES[id], name: `${POP_STYLES[id].era} · ${POP_STYLES[id].name}` }]));
+const ALL = { ...POP_STYLES, ...MODERN_STYLES };
+const ALL_IDS = [...POP_STYLE_IDS, ...MODERN_STYLE_IDS];
+const STYLES = Object.fromEntries(ALL_IDS.map((id) => [id, { ...ALL[id], name: `${ALL[id].era} · ${ALL[id].name}` }]));
 
 let current = null;
 
@@ -23,13 +26,13 @@ runPage({
   sections: POP_SECTIONS,
   sectionOf: POP_SECTION_OF,
   styles: STYLES,
-  styleIds: POP_STYLE_IDS,
+  styleIds: ALL_IDS,
   pieces: [],
   pieceBy: {},
   pieceParam: 'piece',
   defaultStyle: 'moog',
   Stage: PopStage,
-  labels: POP_LABELS,
+  labels: { ...POP_LABELS, ...MODERN_LABELS },
   core: [],
   climaxToast: 'Key change!',
   hallSize: 0.4,
@@ -49,11 +52,12 @@ runPage({
       items: PROGRESSIONS.map((p) => ({ id: p.id, name: p.name, nick: `${p.nick} · bass ${p.bass} · ${p.minor ? 'minor' : 'major'}`, desc: `${p.moves} <em>${p.where}</em>` })),
     },
   ],
-  programName: (state) => `${POP_STYLES[state.style].name} No. ${state.seed % 1000}`,
+  programName: (state) => `${ALL[state.style].name} No. ${state.seed % 1000}`,
   metaBits: (i, label) => [label, ...(i.prog ? [i.prog] : [])],
   onInfo: (info, stage) => stage.setInfo(info, current?.style),
   makeSource: (state, common) => {
     current = state;
+    if (MODERN_STYLES[state.style]) return new ModernComposer({ ...common, style: state.style });
     return new PopComposer({ ...common, style: state.style, riff: state.riff, prog: state.prog });
   },
 });
