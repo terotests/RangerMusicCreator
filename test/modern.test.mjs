@@ -45,7 +45,7 @@ test('the drops pump: a kick on every beat, a quieter clap on two and four, the 
       const theme = b.events.filter((e) => e.i === 'theme');
       assert.ok(sub.length && theme.length);
       assert.ok(Math.min(...sub.map((e) => e.v)) > 2 * Math.max(...theme.map((e) => e.v)), `${style} bar ${k}`);
-      assert.ok(sub.every((e) => e.m <= 52));
+      assert.ok(sub.every((e) => e.m <= 46));
     }
     // Every fourth bar of the bass line ends with a small rise.
     assert.ok(bars.filter((b, k) => k % 4 === 3).every((b) => b.events.some((e) => e.i === 'sub' && e.rise > 0 && e.rise <= 3)));

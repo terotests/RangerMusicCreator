@@ -24,7 +24,7 @@ const MAJ = [0, 2, 4, 5, 7, 9, 11];
 const MIN = [0, 2, 3, 5, 7, 8, 10];
 
 // Register of each bass bar: high, middle, low.
-const REG = { H: 45, M: 38, L: 31 };
+const REG = { H: 38, M: 33, L: 28 };
 
 // Bass rhythms for one bar: [beat, length, pitch] with pitch 'R' (the root in
 // the bar's register), 'O' (an octave up) or '5' (the fifth above).
@@ -181,7 +181,7 @@ export class ModernComposer {
     let prevM = null;
     cells.forEach(([b, d, w], k) => {
       let m = base;
-      if (w === 'O') m = base + 12 <= 52 ? base + 12 : base;
+      if (w === 'O') m = base + 12 <= 44 ? base + 12 : base;
       if (w === '5') m = base + 7;
       const last = k === cells.length - 1;
       // A new pitch slides in; the same pitch is struck again, so it pumps.
@@ -416,7 +416,7 @@ export class ModernComposer {
   endBar() {
     const song = this.song;
     const key = song.key;
-    const root = fit(key + 24, 26, 37);
+    const root = fit(key + 24, 24, 35);
     const tones = chordPcs(key, { r: 0, q: song.minor ? 'min' : 'maj' });
     const events = [
       { i: 'dkick', a: 'boom', b: 0, d: 0.5, v: 1 },

@@ -175,8 +175,9 @@ export const subBass = voice((ctx, out, ev, t, dur) => {
   const from = ev.glide && prev && Math.abs(prev.end - t) < 0.12 ? mtof(prev.m) : null;
   const v = Math.max(0.05, Math.min(1, ev.v));
   const bend = (param, mult) => {
-    param.setValueAtTime((from ?? f) * mult, t);
-    if (from) param.exponentialRampToValueAtTime(f * mult, t + 0.07);
+    // A new note starts a fifth high and drops into place: the 808 boom.
+    param.setValueAtTime((from ?? f * 1.5) * mult, t);
+    param.exponentialRampToValueAtTime(f * mult, t + (from ? 0.07 : 0.035));
     if (ev.rise) {
       const r0 = Math.max(t + 0.08, t + dur * (ev.riseAt ?? 0.6));
       param.setValueAtTime(f * mult, r0);
@@ -189,13 +190,13 @@ export const subBass = voice((ctx, out, ev, t, dur) => {
   sine.type = 'sine';
   bend(sine.frequency, 1);
   const sg = ctx.createGain();
-  sg.gain.value = 0.62;
+  sg.gain.value = 0.8;
   sine.connect(sg).connect(mix);
   const oct = ctx.createOscillator();
   oct.type = 'sine';
   bend(oct.frequency, 2);
   const og = ctx.createGain();
-  og.gain.value = 0.12;
+  og.gain.value = 0.05;
   oct.connect(og).connect(mix);
   const tri = ctx.createOscillator();
   tri.type = 'triangle';
@@ -203,14 +204,14 @@ export const subBass = voice((ctx, out, ev, t, dur) => {
   const tg = ctx.createGain();
   tg.gain.value = 0.5;
   const ws = ctx.createWaveShaper();
-  ws.curve = driveCurve(ctx, 0.6);
+  ws.curve = driveCurve(ctx, 0.75);
   const lp = ctx.createBiquadFilter();
   lp.type = 'lowpass';
   lp.Q.value = 1.2;
-  lp.frequency.setValueAtTime(280 + 520 * v, t);
-  lp.frequency.setTargetAtTime(220 + 260 * v, t + 0.02, 0.25);
+  lp.frequency.setValueAtTime(260 + 240 * v, t);
+  lp.frequency.setTargetAtTime(150 + 60 * v, t + 0.02, 0.12);
   const tl = ctx.createGain();
-  tl.gain.value = 0.22;
+  tl.gain.value = 0.3;
   tri.connect(tg).connect(ws).connect(lp).connect(tl).connect(mix);
   // The pump: down on each beat, back up before the next one.
   const pump = ctx.createGain();
@@ -223,7 +224,7 @@ export const subBass = voice((ctx, out, ev, t, dur) => {
     }
   }
   const amp = ctx.createGain();
-  const peak = 0.62 * v;
+  const peak = 0.8 * v;
   amp.gain.setValueAtTime(from ? peak : 0, t);
   if (!from) amp.gain.linearRampToValueAtTime(peak, t + 0.008);
   amp.gain.setValueAtTime(peak, Math.max(t + 0.01, end - 0.01));
@@ -235,12 +236,12 @@ export const subBass = voice((ctx, out, ev, t, dur) => {
   }
 }, 0.4);
 
-// The MODERN kick: deep and round, a long sine body that falls to about
-// 41 Hz with a short click on top, so the beat is felt as much as heard. The
+// The MODERN kick: a booming 808-style drum, a long warm sine body that
+// falls to about 36 Hz with a short click on top, so the beat is felt as much as heard. The
 // sub bass ducks under it. 'boom' is the heavier hit that ends the breakdown.
 export const danceKick = voice((ctx, out, ev, t) => kickDrum(ctx, out, t, ev.v, ev.a === 'boom'
-  ? { pitch: 44, end: 31, decay: 0.75, click: 0.4, drive: 0.3, gain: 1.35 }
-  : { pitch: 50, end: 41, decay: 0.42, click: 0.3, drive: 0.22, gain: 1.15 }), 0.8);
+  ? { pitch: 40, end: 30, decay: 0.9, click: 0.25, drive: 0.4, gain: 1.4 }
+  : { pitch: 45, end: 36, decay: 0.55, click: 0.15, drive: 0.38, gain: 1.3 }), 0.8);
 
 // The MODERN clap: drier and softer than the Italo clap, and never the same
 // twice. Each hit picks its own colour and length; 'soft' is a ghost, 'flam'
@@ -462,7 +463,7 @@ export const POP_BAND = {
 };
 
 export const POP_RANGE = {
-  bass: [28, 55], sub: [24, 52], mbass: [28, 55], pbass: [28, 55],
+  bass: [28, 55], sub: [23, 46], mbass: [28, 55], pbass: [28, 55],
   hpsi: [41, 96], ep: [48, 84], piano: [40, 96], organ: [36, 96], arp: [55, 96], bell: [64, 100], gtr: [38, 64], stab: [48, 84],
   pad: [45, 84], horns: [48, 76], str: [52, 88], vox: [52, 79], pump: [48, 84],
   lead: [50, 96], theme: [55, 88], vln: [55, 93], tpluck: [60, 96], moog: [50, 96], saw: [50, 96], pluck: [50, 96], brass: [48, 86], flute: [60, 96], etom: [38, 62],
